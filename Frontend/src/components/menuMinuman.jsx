@@ -1,49 +1,44 @@
-import  { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebaseConfig';
-// Import Firestore instance
+import { useState, useEffect } from "react";
 
-const MenuMinuman = () => {
-    const [menu, setMenu] = useState([]);
+const MenuMinuman= () => {
+  const [data, setData] = useState([]);
 
-    useEffect(() => {
-        const fetchMenu = async () => {
-            try {
-                const docRef = doc(db, 'Menu', 'MinumanMenu'); // Reference to 'Minuman'
-                const docSnap = await getDoc(docRef);
+  useEffect(() => {
+    // Pastikan URL yang digunakan sesuai
+    fetch("http://localhost:8080/menuMinuman")
+      .then((response) => response.json())
+      .then((result) => {
+        console.log(result);  // Periksa apakah hasilnya sesuai dengan yang diinginkan
+        setData(result.data); // Menyimpan data ke state
+      })
+      .catch((error) => console.error("Error:", error));
 
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    setMenu(data.Minuman || []); // Access the 'Minuman' array
-                } else {
-                    console.log('No such document!');
-                }
-            } catch (error) {
-                console.log('Error fetching menu:', error);
-            }
-        };
+  }, []);
 
-        fetchMenu();
-    }, []); // Runs only once when the component mounts
+  return (
+    <>
+      <div className="container mx-auto p-4" id="MinumanMenu">
+        <h1 className="text-3xl font-bold text-center mb-6">Menu Minuman</h1>
+        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {data.map((item) => (
+            <li key={item.id} className="border rounded-lg shadow-md p-4 bg-white">
+              <h2 className="text-xl font-semibold mb-2 text-black">{item.Nama}</h2>
+              <p className="text-gray-700 mb-4">{item.Deskripsi}</p>
+              <p className="text-lg font-bold text-green-600 mb-4">
+              Harga: Rp {new Intl.NumberFormat('id-ID').format(item.Harga)}
+              </p>
+              <img
+                src={`http://localhost:8080/${item.image}`}
+                alt={item.Nama}
+                className="w-full h-auto rounded-md"
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
 
-    return (
-        <div>
-            <h1>Minuman Menu</h1>
-            {menu.length === 0 ? (
-                <p>Loading menu...</p>
-            ) : (
-                <ul>
-                    {menu.map((item, index) => (
-                        <li key={index}>
-                            <strong>{item.Nama}</strong> - Rp{item.Harga}
-                            <br />
-                            <em>{item.Deskripsi}</em>
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </div>
-    );
+    </>
+  );
 };
 
 export default MenuMinuman;

@@ -5,7 +5,7 @@ const MenuMakanan = () => {
 
   useEffect(() => {
     // Pastikan URL yang digunakan sesuai
-    fetch("http://localhost:8080/api/data")
+    fetch("http://localhost:8080/menuMakanan")
       .then((response) => response.json())
       .then((result) => {
         console.log(result);  // Periksa apakah hasilnya sesuai dengan yang diinginkan
@@ -17,7 +17,7 @@ const MenuMakanan = () => {
 
   return (
     <>
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto p-4" id="MakananMenu">
         <h1 className="text-3xl font-bold text-center mb-6">Menu Makanan</h1>
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {data.map((item) => (

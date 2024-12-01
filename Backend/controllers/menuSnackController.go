@@ -9,20 +9,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetMenuMakananController untuk membuat route
-func GetMenuMakananController(r *gin.Engine) {
+// GetMenuSnakcsController untuk membuat route
+func GetMenuSnacks(r *gin.Engine) {
 	// Endpoint API untuk mengambil data dari database
-	r.GET("/menuMakanan", func(c *gin.Context) {
-		var makanan []model.Makanan
+	r.GET("/menuSnacks", func(c *gin.Context) {
+		var snacks []model.Snack
 
-		// Query database untuk mengambil semua data menu makanan
-		if err := config.DB.Find(&makanan).Error; err != nil {
+		// Query database untuk mengambil semua data menu snacks
+		if err := config.DB.Find(&snacks).Error; err != nil {
 			fmt.Println("Error fetching data:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch data"})
 			return
 		}
 
-		if len(makanan) == 0 {
+		if len(snacks) == 0 {
 			c.JSON(http.StatusOK, gin.H{
 				"message": "No data available",
 				"data":    []interface{}{}, // Return empty array when no data
@@ -33,7 +33,7 @@ func GetMenuMakananController(r *gin.Engine) {
 		// Kirimkan data sebagai JSON
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Data from MySQL",
-			"data":    makanan,
+			"data":    snacks,
 		})
 	})
 }

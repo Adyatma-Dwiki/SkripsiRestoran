@@ -23,10 +23,18 @@ func ConnectDB() {
 	}
 	fmt.Println("Successfully connected to database!")
 
-	// Lakukan migrasi jika diperlukan (misalnya untuk membuat tabel)
-	err = DB.AutoMigrate(&model.Makanan{}).Error
-	if err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+	// Daftar model yang akan dimigrasi
+	models := []interface{}{
+		&model.Makanan{},
+		&model.Minuman{},
+		&model.Snack{},
 	}
-	fmt.Println("Database migrated successfully!")
+
+	// Iterasi untuk migrasi semua model
+	for _, model := range models {
+		if err := DB.AutoMigrate(model).Error; err != nil {
+			log.Fatalf("Failed to migrate model %T: %v", model, err)
+		}
+		fmt.Printf("Model %T migrated successfully!\n", model)
+	}
 }
