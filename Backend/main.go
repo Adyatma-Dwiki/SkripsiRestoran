@@ -24,6 +24,9 @@ func main() {
 	controllers.GetMenuMakananController(r)
 	controllers.GetMenuMinuman(r)
 	controllers.GetMenuSnacks(r)
+	controllers.PostOrder(r, config.DB)
+	controllers.GetOrder(r, config.DB)
+	controllers.GetOrderByID(r, config.DB)
 
 	// Jalankan server di port 8080
 	r.Run(":8080")

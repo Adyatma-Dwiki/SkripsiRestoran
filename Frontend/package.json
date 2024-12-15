@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@lottiefiles/dotlottie-react": "^0.11.1",
     "firebase": "^11.0.2",
     "firebase-tools": "^13.27.0",
+    "lottie-web": "^5.12.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.0.1",

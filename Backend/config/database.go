@@ -28,6 +28,9 @@ func ConnectDB() {
 		&model.Makanan{},
 		&model.Minuman{},
 		&model.Snack{},
+		&model.Order{},
+		&model.OrderItem{},
+		&model.User{},
 	}
 
 	// Iterasi untuk migrasi semua model

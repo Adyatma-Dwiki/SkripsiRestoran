@@ -938,6 +938,18 @@
   resolved "https://registry.yarnpkg.com/@jsdevtools/ono/-/ono-7.1.3.tgz#9df03bbd7c696a5c58885c34aa06da41c8543796"
   integrity sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg==
 
+"@lottiefiles/dotlottie-react@^0.11.1":
+  version "0.11.1"
+  resolved "https://registry.yarnpkg.com/@lottiefiles/dotlottie-react/-/dotlottie-react-0.11.1.tgz#4db4602c6a7b901be8196e6b6d38d05c85a4a2b5"
+  integrity sha512-pS/f2eI2DJJkzxLHrqUGw5JDEFqp+eqTQFWpoc6nTrbJshOkweUvyD5ON6kkmd4n6auQorHfBcdSLIgg4jIReA==
+  dependencies:
+    "@lottiefiles/dotlottie-web" "0.38.2"
+
+"@lottiefiles/dotlottie-web@0.38.2":
+  version "0.38.2"
+  resolved "https://registry.yarnpkg.com/@lottiefiles/dotlottie-web/-/dotlottie-web-0.38.2.tgz#fa97288443f695f6bb76f9e632eb83cd255a2874"
+  integrity sha512-01d+UjJ8NG7ZStYQxtb8FPzknzGmauG7gEkcH+wHfSdiSQJY9PoBNVSTB9V6F5hAnmFqOxaocTtd7TIEEnzMnA==
+
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
   resolved "https://registry.yarnpkg.com/@nodelib/fs.scandir/-/fs.scandir-2.1.5.tgz#7619c2eb21b25483f6d167548b4cfd5a7488c3d5"
@@ -4339,6 +4351,11 @@ loose-envify@^1.1.0, loose-envify@^1.4.0:
   integrity sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==
   dependencies:
     js-tokens "^3.0.0 || ^4.0.0"
+
+lottie-web@^5.12.2:
+  version "5.12.2"
+  resolved "https://registry.yarnpkg.com/lottie-web/-/lottie-web-5.12.2.tgz#579ca9fe6d3fd9e352571edd3c0be162492f68e5"
+  integrity sha512-uvhvYPC8kGPjXT3MyKMrL3JitEAmDMp30lVkuq/590Mw9ok6pWcFCwXJveo0t5uqYw1UREQHofD+jVpdjBv8wg==
 
 lru-cache@^10.0.1, lru-cache@^10.2.0:
   version "10.4.3"
