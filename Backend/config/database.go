@@ -31,6 +31,7 @@ func ConnectDB() {
 		&model.Order{},
 		&model.OrderItem{},
 		&model.User{},
+		&model.DapurOrder{},
 	}
 
 	// Iterasi untuk migrasi semua model

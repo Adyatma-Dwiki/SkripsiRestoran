@@ -10,17 +10,18 @@ const ShoppingCart = () => {
   const [error, setError] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false); // State untuk dialog konfirmasi
 
+  const apiUrl = import.meta.env.VITE_API_URL; 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const [menuMakanan, menuMinuman, menuSnacks] = await Promise.all([
-          fetch("http://localhost:8080/menuMakanan")
+          fetch(`${apiUrl}/menuMakanan`)
             .then((res) => res.json())
             .then((result) => result.data || result),
-          fetch("http://localhost:8080/menuMinuman")
+          fetch(`${apiUrl}/menuMinuman`)
             .then((res) => res.json())
             .then((result) => result.data || result),
-          fetch("http://localhost:8080/menuSnacks")
+          fetch(`${apiUrl}/menuSnacks`)
             .then((res) => res.json())
             .then((result) => result.data || result),
         ]);
@@ -93,7 +94,7 @@ const ShoppingCart = () => {
     console.log("Data yang dikirim ke backend:", requestData);
 
     try {
-      const response = await fetch("http://localhost:8080/orders", {
+      const response = await fetch(`${apiUrl}/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,7 +133,7 @@ const ShoppingCart = () => {
           onConfirm={handleCheckout} // Lanjutkan proses checkout
         />
       )}
-      <div className="flex justify-center items-center w-screen h-screen bg-slate-950">
+      <div className="flex justify-center items-center w-screen h-screen bg-slate-950 mt-12">
         <div className="flex justify-between gap-10 p-8 bg-white shadow-lg rounded-lg max-w-screen-xl w-full min-h-[500px]">
           {/* Left: Cart Items */}
           <div className="w-2/3 space-y-4">
@@ -145,7 +146,7 @@ const ShoppingCart = () => {
                 >
                   <div className="flex items-center space-x-4">
                     <img
-                      src={`http://localhost:8080/${product.image}`}
+                      src={`http://10.168.68.1:8080/${product.image}`}
                       alt={product.Nama}
                       className="w-20 h-20 rounded-md"
                     />

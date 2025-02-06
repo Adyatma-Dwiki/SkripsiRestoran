@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 
 const MenuSnacks= () => {
   const [data, setData] = useState([]);
+  const apiUrl = import.meta.env.VITE_API_URL; 
 
   useEffect(() => {
+    if (!apiUrl) return;
     // Pastikan URL yang digunakan sesuai
-    fetch("http://localhost:8080/menuSnacks")
+   fetch(`${apiUrl}/menuSnacks`)
       .then((response) => response.json())
       .then((result) => {
         console.log(result);  // Periksa apakah hasilnya sesuai dengan yang diinginkan
@@ -13,7 +15,7 @@ const MenuSnacks= () => {
       })
       .catch((error) => console.error("Error:", error));
 
-  }, []);
+  }, [apiUrl]);
 
   return (
     <>
@@ -28,7 +30,7 @@ const MenuSnacks= () => {
               Harga: Rp {new Intl.NumberFormat('id-ID').format(item.Harga)}
               </p>
               <img
-                src={`http://localhost:8080/${item.image}`}
+                src={`${apiUrl}/${item.image}`}
                 alt={item.Nama}
                 className="w-full h-auto rounded-md"
               />
