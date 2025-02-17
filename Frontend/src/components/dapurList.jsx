@@ -42,7 +42,7 @@ const DapurList = () => {
     };
 
     return (
-        <div className="container mx-auto p-7 mt-28">
+        <div className="container mx-auto px-4 mt-3">
             <h1 className="text-2xl font-bold mb-4">Order List</h1>
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200 shadow-md rounded-lg">

@@ -6,5 +6,3 @@ type MqttPayload struct {
 	Status    string   `json:"status"`
 	FoodNames []string `json:"food_names"`
 }
-
-// Fungsi untuk mengirim pesan ke MQTT

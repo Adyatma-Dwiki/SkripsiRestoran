@@ -97,6 +97,7 @@ func main() {
 	controllers.GetOrder(r, config.DB)
 	controllers.GetOrderByID(r, config.DB)
 	controllers.DapurOrder(r, config.DB, mqttClient)
+	controllers.LoginSetup(r)
 
 	// Endpoint untuk melihat jumlah perangkat unik yang terhubung
 	r.GET("/connectedDevices", func(c *gin.Context) {

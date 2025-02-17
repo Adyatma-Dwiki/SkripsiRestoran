@@ -1,9 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
-import RootLayout from "../Layout/RootLayout"; // Pastikan path ini benar
+import RootLayout from "../Layout/RootLayout";
 import Homepage from "../pages/homepage";
 import Checkout from "../pages/checkout";
 import DapurList from "../components/dapurList";
-
+import LoginPage from "../pages/loginPage"; // Pastikan ada halaman login
+import ProtectedRoute from "../components/protectedRoute";
 
 export const router = createBrowserRouter([
   {
@@ -18,10 +19,18 @@ export const router = createBrowserRouter([
         path: "/Checkout",
         element: <Checkout />,
       },
-      {
-        path: "/Dapur",
-        element: <DapurList />,
-      }
     ],
+  },
+  {
+    path: "/login",
+    element: <LoginPage />, // Halaman login
+  },
+  {
+    path: "/Dapur",
+    element: (
+      <ProtectedRoute>
+        <DapurList />
+      </ProtectedRoute>
+    ),
   },
 ]);
