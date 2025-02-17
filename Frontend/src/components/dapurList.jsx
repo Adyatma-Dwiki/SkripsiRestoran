@@ -5,7 +5,7 @@ const DapurList = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const apiUrl = import.meta.env.VITE_API_URL;
 
-    useEffect(() => {
+    const fetchOrders = () => {
         fetch(`${apiUrl}/dapur`)
             .then((response) => response.json())
             .then((result) => {
@@ -13,6 +13,10 @@ const DapurList = () => {
                 setOrders(result.data);
             })
             .catch((error) => console.error("Error:", error));
+    };
+
+    useEffect(() => {
+        fetchOrders(); // Ambil data saat pertama kali render
     }, []);
 
     // Fungsi untuk menangani klik tombol ceklis
@@ -31,13 +35,8 @@ const DapurList = () => {
         })
             .then((response) => response.json())
             .then(() => {
-                // Update state lokal setelah berhasil update
-                setOrders((prevOrders) =>
-                    prevOrders.map((order) =>
-                        order.id === selectedOrder.id ? { ...order, action: true } : order
-                    )
-                );
                 setSelectedOrder(null); // Tutup popup
+                fetchOrders(); // Refresh data setelah konfirmasi berhasil
             })
             .catch((error) => console.error("Error updating order:", error));
     };

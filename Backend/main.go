@@ -1,11 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"myapp/config"
 	"myapp/controllers"
 	"net/http"
 	"sync"
+	"time"
 
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,10 +52,29 @@ func dynamicCORS() gin.HandlerFunc {
 	}
 }
 
+// Setup MQTT client
+func setupMQTT() mqtt.Client {
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker("tcp://192.168.0.100:1884") // Sesuaikan dengan broker MQTT kamu
+	opts.SetClientID("resto-backend")
+	opts.SetKeepAlive(2 * time.Second)
+	opts.SetPingTimeout(1 * time.Second)
+	client := mqtt.NewClient(opts)
+	token := client.Connect()
+	token.Wait()
+
+	if token.Error() != nil {
+		log.Fatalf("Gagal terhubung ke MQTT: %v", token.Error())
+	}
+
+	fmt.Println("Terhubung ke MQTT broker")
+	return client
+}
+
 func main() {
 	// Inisialisasi koneksi ke database
 	config.ConnectDB()
-
+	mqttClient := setupMQTT()
 	// Setup Gin Router
 	r := gin.Default()
 	r.Static("/images", "./images")
@@ -73,7 +96,7 @@ func main() {
 	controllers.PostOrder(r, config.DB)
 	controllers.GetOrder(r, config.DB)
 	controllers.GetOrderByID(r, config.DB)
-	controllers.DapurOrder(r, config.DB)
+	controllers.DapurOrder(r, config.DB, mqttClient)
 
 	// Endpoint untuk melihat jumlah perangkat unik yang terhubung
 	r.GET("/connectedDevices", func(c *gin.Context) {

@@ -10,7 +10,7 @@ const ShoppingCart = () => {
   const [error, setError] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false); // State untuk dialog konfirmasi
 
-  const apiUrl = import.meta.env.VITE_API_URL; 
+  const apiUrl = import.meta.env.VITE_API_URL;
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -43,17 +43,23 @@ const ShoppingCart = () => {
   }, []);
 
   const increaseQuantity = (id, index) => {
-    setQuantities((prevQuantities) => ({
-      ...prevQuantities,
-      [`${id}-${index}`]: (prevQuantities[`${id}-${index}`] || 0) + 1,
-    }));
+    setQuantities((prevQuantities) => {
+      const currentQuantity = prevQuantities[`${id}-${index}`] || 0; // Ambil nilai saat ini, jika ada
+      return {
+        ...prevQuantities,
+        [`${id}-${index}`]: currentQuantity + 1, // Tambahkan 1 pada nilai yang ada
+      };
+    });
   };
 
   const decreaseQuantity = (id, index) => {
-    setQuantities((prevQuantities) => ({
-      ...prevQuantities,
-      [`${id}-${index}`]: Math.max((prevQuantities[`${id}-${index}`] || 1) - 1, 0),
-    }));
+    setQuantities((prevQuantities) => {
+      const currentQuantity = prevQuantities[`${id}-${index}`] || 0; // Ambil nilai saat ini, jika ada
+      return {
+        ...prevQuantities,
+        [`${id}-${index}`]: currentQuantity - 1, // Kurangi 1 pada nilai yang ada
+      };
+    });
   };
 
   const totalHarga = products.reduce((acc, product, index) => {
@@ -146,7 +152,7 @@ const ShoppingCart = () => {
                 >
                   <div className="flex items-center space-x-4">
                     <img
-                      src={`http://10.168.68.1:8080/${product.image}`}
+                      src={`${apiUrl}/${product.image}`}
                       alt={product.Nama}
                       className="w-20 h-20 rounded-md"
                     />
@@ -162,7 +168,21 @@ const ShoppingCart = () => {
                     >
                       -
                     </button>
-                    <p>{quantities[`${product.id}-${index}`] || 0}</p>
+                    <input
+                      type="number"
+                      min="0"
+                      value={quantities[`${product.id}-${index}`] || ""}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        if (/^\d*$/.test(newValue)) {
+                          setQuantities((prev) => ({
+                            ...prev,
+                            [`${product.id}-${index}`]: newValue !== "" ? Number(newValue) : "", // Pastikan nilai tetap angka
+                          }));
+                        }
+                      }}
+                      className="border px-2 py-1 rounded text-white w-16 text-center"
+                    />
                     <button
                       className="bg-gray-200 px-3 py-1 rounded"
                       onClick={() => increaseQuantity(product.id, index)}
@@ -182,9 +202,14 @@ const ShoppingCart = () => {
               <div className="flex justify-between">
                 <p>Meja</p>
                 <input
-                  type="text"
+                  type="number"
                   value={tableID}
-                  onChange={(e) => setTableID(e.target.value)}
+                  onChange={(e) => {
+                    let value = e.target.value;
+                    if (value === "" || (/^[1-9][0-9]?$/.test(value))) {
+                      setTableID(value);
+                    }
+                  }}
                   placeholder="Isi nomor meja"
                   className="border px-2 py-1 rounded text-white"
                 />
