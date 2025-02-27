@@ -139,35 +139,23 @@ const ShoppingCart = () => {
           onConfirm={handleCheckout} // Lanjutkan proses checkout
         />
       )}
-      <div className="flex justify-center items-center w-screen h-screen bg-slate-950 mt-12">
-        <div className="flex justify-between gap-10 p-8 bg-white shadow-lg rounded-lg max-w-screen-xl w-full min-h-[500px]">
+      <div className="flex flex-col md:flex-row justify-center items-center w-screen min-h-screen bg-slate-950 p-4">
+        <div className="flex flex-col md:flex-row justify-between gap-6 p-4 bg-white shadow-lg rounded-lg max-w-screen-lg w-full mt-20">
           {/* Left: Cart Items */}
-          <div className="w-2/3 space-y-4">
+          <div className="w-full md:w-2/3 space-y-4">
             <h2 className="text-xl font-bold text-black">Pesanan Anda</h2>
             <div className="space-y-4 max-h-[500px] overflow-y-auto">
               {products.map((product, index) => (
-                <div
-                  key={`${product.id}-${index}`}
-                  className="flex justify-between border p-4 rounded text-black"
-                >
-                  <div className="flex items-center space-x-4">
-                    <img
-                      src={`${apiUrl}/${product.image}`}
-                      alt={product.Nama}
-                      className="w-20 h-20 rounded-md"
-                    />
+                <div key={`${product.id}-${index}`} className="flex flex-col sm:flex-row justify-between items-center border p-4 rounded text-black">
+                  <div className="flex items-center space-x-4 w-full sm:w-auto">
+                    <img src={`${apiUrl}/${product.image}`} alt={product.Nama} className="w-16 h-16 sm:w-20 sm:h-20 rounded-md" />
                     <div>
                       <h3 className="font-bold">{product.Nama}</h3>
                       <p>Rp {new Intl.NumberFormat("id-ID").format(product.Harga)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <button
-                      className="bg-gray-200 px-3 py-1 rounded"
-                      onClick={() => decreaseQuantity(product.id, index)}
-                    >
-                      -
-                    </button>
+                  <div className="flex items-center space-x-2 sm:space-x-4 mt-2 sm:mt-0">
+                    <button className="bg-gray-200 px-3 py-1 rounded" onClick={() => decreaseQuantity(product.id, index)}>-</button>
                     <input
                       type="number"
                       min="0"
@@ -175,20 +163,12 @@ const ShoppingCart = () => {
                       onChange={(e) => {
                         const newValue = e.target.value;
                         if (/^\d*$/.test(newValue)) {
-                          setQuantities((prev) => ({
-                            ...prev,
-                            [`${product.id}-${index}`]: newValue !== "" ? Number(newValue) : "", // Pastikan nilai tetap angka
-                          }));
+                          setQuantities((prev) => ({ ...prev, [`${product.id}-${index}`]: newValue !== "" ? Number(newValue) : "" }));
                         }
                       }}
-                      className="border px-2 py-1 rounded text-white w-16 text-center"
+                      className="border px-2 py-1 rounded text-black w-12 text-center"
                     />
-                    <button
-                      className="bg-gray-200 px-3 py-1 rounded"
-                      onClick={() => increaseQuantity(product.id, index)}
-                    >
-                      +
-                    </button>
+                    <button className="bg-gray-200 px-3 py-1 rounded" onClick={() => increaseQuantity(product.id, index)}>+</button>
                   </div>
                 </div>
               ))}
@@ -196,23 +176,12 @@ const ShoppingCart = () => {
           </div>
 
           {/* Right: Order Summary */}
-          <div className="w-1/3 p-8 border rounded-lg text-black">
-            <h2 className="text-xl font-bold mb-6">Ringkasan Pesanan</h2>
-            <div className="space-y-6">
+          <div className="w-full md:w-1/3 p-6 border rounded-lg text-black md:mt-0 mt-6">
+            <h2 className="text-xl font-bold mb-4">Ringkasan Pesanan</h2>
+            <div className="space-y-4">
               <div className="flex justify-between">
                 <p>Meja</p>
-                <input
-                  type="number"
-                  value={tableID}
-                  onChange={(e) => {
-                    let value = e.target.value;
-                    if (value === "" || (/^[1-9][0-9]?$/.test(value))) {
-                      setTableID(value);
-                    }
-                  }}
-                  placeholder="Isi nomor meja"
-                  className="border px-2 py-1 rounded text-white"
-                />
+                <input type="number" value={tableID} onChange={(e) => setTableID(e.target.value)} placeholder="Isi nomor meja" className="border px-2 py-1 rounded text-black w-20 text-center" />
               </div>
               <div className="flex justify-between">
                 <p>{Object.values(quantities).reduce((acc, qty) => acc + qty, 0)} Items</p>
@@ -221,21 +190,16 @@ const ShoppingCart = () => {
                 <p>Total</p>
                 <p>Rp {totalHarga.toLocaleString("id-ID")}</p>
               </div>
-              <CheckoutButton
-                onCheckout={confirmCheckout} // Tampilkan dialog konfirmasi
-                loading={loading}
-                tableID={tableID}
-                totalHarga={totalHarga}
-              />
+              <CheckoutButton onCheckout={confirmCheckout} loading={loading} tableID={tableID} totalHarga={totalHarga} />
               {error && <p className="text-red-500 mt-4">{error}</p>}
             </div>
           </div>
-
         </div>
       </div>
 
     </>
   );
 };
+
 
 export default ShoppingCart;

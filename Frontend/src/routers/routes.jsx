@@ -16,7 +16,7 @@ export const router = createBrowserRouter([
         element: <Homepage />,
       },
       {
-        path: "/Checkout",
+        path: "/checkout",
         element: <Checkout />,
       },
     ],
@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
     element: <LoginPage />, // Halaman login
   },
   {
-    path: "/Dapur",
+    path: "/dapur",
     element: (
       <ProtectedRoute>
         <DapurList />

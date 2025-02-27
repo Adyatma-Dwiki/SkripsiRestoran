@@ -17,7 +17,7 @@ const DapurList = () => {
 
     useEffect(() => {
         fetchOrders(); // Ambil data saat pertama kali render
-    }, []);
+    }, [orders]);
 
     // Fungsi untuk menangani klik tombol ceklis
     const handleCheckOrder = (order) => {

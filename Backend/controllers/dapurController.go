@@ -26,7 +26,6 @@ func publishToMQTT(client mqtt.Client, topic string, payload model.MqttPayload) 
 }
 
 // Fungsi untuk menyalin Order ke DapurOrders dengan status default
-
 func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client) {
 	orderID := c.Param("id")
 	orderIDInt, err := strconv.Atoi(orderID)
@@ -96,7 +95,7 @@ func DapurOrder(r *gin.Engine, db *gorm.DB, mqttClient mqtt.Client) {
 		var dapurOrders []model.DapurOrder
 
 		// Query database untuk mengambil semua data dari dapurs
-		if err := db.Preload("OrderItems").Find(&dapurOrders).Error; err != nil {
+		if err := db.Preload("OrderItems").Order("id DESC").Find(&dapurOrders).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch dapur orders"})
 			return
 		}
