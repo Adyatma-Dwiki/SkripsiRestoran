@@ -166,7 +166,7 @@ const ShoppingCart = () => {
                           setQuantities((prev) => ({ ...prev, [`${product.id}-${index}`]: newValue !== "" ? Number(newValue) : "" }));
                         }
                       }}
-                      className="border px-2 py-1 rounded text-black w-12 text-center"
+                      className="border px-2 py-1 rounded text-white w-12 text-center"
                     />
                     <button className="bg-gray-200 px-3 py-1 rounded" onClick={() => increaseQuantity(product.id, index)}>+</button>
                   </div>
@@ -181,7 +181,7 @@ const ShoppingCart = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <p>Meja</p>
-                <input type="number" value={tableID} onChange={(e) => setTableID(e.target.value)} placeholder="Isi nomor meja" className="border px-2 py-1 rounded text-black w-20 text-center" />
+                <input type="number" value={tableID} onChange={(e) => setTableID(e.target.value)} placeholder="Isi nomor meja" className="border px-2 py-1 rounded text-white w-20 text-center" />
               </div>
               <div className="flex justify-between">
                 <p>{Object.values(quantities).reduce((acc, qty) => acc + qty, 0)} Items</p>
