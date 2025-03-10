@@ -32,6 +32,8 @@ const EditMenu = ({ fetchDataFunction, editApiUrl }) => {
     };
 
     const handleSave = () => {
+        const confirmEdit= window.confirm("Apakah Anda yakin ingin mengedit menu ini?");
+        if (!confirmEdit) return;
         const formData = new FormData();
         formData.append("Nama", selectedMenu.Nama);
         formData.append("Deskripsi", selectedMenu.Deskripsi);
