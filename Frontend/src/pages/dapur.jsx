@@ -1,9 +1,10 @@
-import DapurList from "../components/dapurList";
+
+import DapurPage from "../components/dapurPage";
 
 const Dapur = () => {  
   return (
     <>
-        <DapurList />
+        <DapurPage />
     </>
   );
 }

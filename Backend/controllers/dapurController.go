@@ -6,7 +6,10 @@ import (
 	"log"
 	"myapp/model"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
@@ -134,4 +137,215 @@ func DapurOrder(r *gin.Engine, db *gorm.DB, mqttClient mqtt.Client) {
 	r.PUT("/dapur/:id", func(c *gin.Context) {
 		UpdateDapurOrder(c, db, mqttClient)
 	})
+}
+
+func AddNewMenu(r *gin.Engine, db *gorm.DB) {
+	// Handler untuk upload gambar dan tambah menu makanan
+	r.POST("/addMenuMakanan", func(c *gin.Context) {
+		var menu model.Makanan
+
+		// Ambil file gambar dari form-data
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File upload required"})
+			return
+		}
+
+		// Simpan gambar ke folder uploads/
+		uploadDir := "uploads"
+		os.MkdirAll(uploadDir, os.ModePerm) // Pastikan folder ada
+
+		// Format ulang nama file untuk menghindari konflik
+		filename := strings.ReplaceAll(file.Filename, " ", "_") // Hindari spasi di nama file
+		filePath := filepath.Join(uploadDir, filename)
+
+		// Simpan file
+		if err := c.SaveUploadedFile(file, filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+			return
+		}
+
+		// Pastikan path yang disimpan di database menggunakan images/
+		imagePath := filepath.ToSlash(strings.Replace(filePath, "uploads", "images", 1))
+
+		// Bind form-data ke struct Makanan
+		menu.Nama = c.PostForm("Nama")
+		menu.Deskripsi = c.PostForm("Deskripsi")
+
+		// Validasi harga
+		harga, err := strconv.Atoi(c.PostForm("Harga"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid price format"})
+			return
+		}
+		menu.Harga = harga
+
+		// Simpan path gambar di database dengan format images/
+		menu.Image = imagePath
+
+		// Simpan data menu ke database
+		if err := db.Create(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create menu"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu created successfully", "data": menu})
+	})
+	// Handler untuk upload gambar dan tambah menu minuman
+	r.POST("/addMenuMinuman", func(c *gin.Context) {
+		var menu model.Minuman
+
+		// Ambil file gambar dari form-data
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File upload required"})
+			return
+		}
+
+		// Simpan gambar ke folder uploads/
+		uploadDir := "uploads"
+		os.MkdirAll(uploadDir, os.ModePerm) // Pastikan folder ada
+
+		// Format ulang nama file untuk menghindari konflik
+		filename := strings.ReplaceAll(file.Filename, " ", "_") // Hindari spasi di nama file
+		filePath := filepath.Join(uploadDir, filename)
+
+		// Simpan file
+		if err := c.SaveUploadedFile(file, filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+			return
+		}
+
+		// Pastikan path yang disimpan di database menggunakan images/
+		imagePath := filepath.ToSlash(strings.Replace(filePath, "uploads", "images", 1))
+
+		// Bind form-data ke struct Makanan
+		menu.Nama = c.PostForm("Nama")
+		menu.Deskripsi = c.PostForm("Deskripsi")
+
+		// Validasi harga
+		harga, err := strconv.Atoi(c.PostForm("Harga"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid price format"})
+			return
+		}
+		menu.Harga = harga
+
+		// Simpan path gambar di database dengan format images/
+		menu.Image = imagePath
+
+		// Simpan data menu ke database
+		if err := db.Create(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create menu"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu created successfully", "data": menu})
+	})
+
+	// Handler untuk upload gambar dan tambah menu snack
+	r.POST("/addMenuSnack", func(c *gin.Context) {
+		var menu model.Snack
+
+		// Ambil file gambar dari form-data
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File upload required"})
+			return
+		}
+
+		// Simpan gambar ke folder uploads/
+		uploadDir := "uploads"
+		os.MkdirAll(uploadDir, os.ModePerm) // Pastikan folder ada
+
+		// Format ulang nama file untuk menghindari konflik
+		filename := strings.ReplaceAll(file.Filename, " ", "_") // Hindari spasi di nama file
+		filePath := filepath.Join(uploadDir, filename)
+
+		// Simpan file
+		if err := c.SaveUploadedFile(file, filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+			return
+		}
+
+		// Pastikan path yang disimpan di database menggunakan images/
+		imagePath := filepath.ToSlash(strings.Replace(filePath, "uploads", "images", 1))
+
+		// Bind form-data ke struct Makanan
+		menu.Nama = c.PostForm("Nama")
+		menu.Deskripsi = c.PostForm("Deskripsi")
+
+		// Validasi harga
+		harga, err := strconv.Atoi(c.PostForm("Harga"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid price format"})
+			return
+		}
+		menu.Harga = harga
+
+		// Simpan path gambar di database dengan format images/
+		menu.Image = imagePath
+
+		// Simpan data menu ke database
+		if err := db.Create(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create menu"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu created successfully", "data": menu})
+	})
+}
+
+func DeleteMenu(r *gin.Engine, db *gorm.DB) {
+	r.DELETE("/deleteMenuMakanan/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		menuID, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+			return
+		}
+
+		var menu model.Makanan
+		if err := db.Where("id = ?", menuID).Delete(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete menu"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Menu deleted successfully"})
+	})
+
+	r.DELETE("/deleteMenuMinuman/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		menuID, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+			return
+		}
+
+		var menu model.Minuman
+		if err := db.Where("id = ?", menuID).Delete(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete menu"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Menu deleted successfully"})
+	})
+
+	r.DELETE("/deleteMenuSnack/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		menuID, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+			return
+		}
+
+		var menu model.Snack
+		if err := db.Where("id = ?", menuID).Delete(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete menu"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Menu deleted successfully"})
+	})
+}
+
+func EditMenu(r *gin.Engine, db *gorm.DB) {
+
 }

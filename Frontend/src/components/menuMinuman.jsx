@@ -30,7 +30,7 @@ const MenuMinuman= () => {
               Harga: Rp {new Intl.NumberFormat('id-ID').format(item.Harga)}
               </p>
               <img
-                src={`${apiUrl}/${item.image}`}
+                src={`${apiUrl}/${item.images}`}
                 alt={item.Nama}
                 className="w-full h-auto rounded-md"
               />

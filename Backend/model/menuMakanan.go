@@ -5,6 +5,10 @@ type Makanan struct {
 	Nama      string `json:"Nama" gorm:"column:Nama"`
 	Deskripsi string `json:"Deskripsi" gorm:"column:Deskripsi"`
 	Harga     int    `json:"Harga" gorm:"column:Harga"`
-	Notes     string `json:"Notes" gorm:"column:Notes"`
 	Image     string `json:"image" gorm:"column:image"`
+}
+
+// TableName mengatur nama tabel yang digunakan GORM
+func (Makanan) TableName() string {
+	return "skripsiresto.makanans"
 }
