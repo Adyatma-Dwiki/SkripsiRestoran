@@ -5,34 +5,52 @@ import PropTypes from 'prop-types';
 const EditMenu = ({ fetchDataFunction, editApiUrl }) => {
     const [menus, setMenus] = useState([]);
     const [selectedMenu, setSelectedMenu] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false); 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [imageFile, setImageFile] = useState(null);
 
     useEffect(() => {
         fetchDataFunction().then(setMenus).catch(error => console.error("Error fetching data:", error));
     }, [fetchDataFunction]);
 
     const handleEdit = (menu) => {
-        setSelectedMenu(menu); 
-        setIsModalOpen(true);  
+        setSelectedMenu(menu);
+        setImagePreview(menu.images); 
+        setIsModalOpen(true);
     };
 
     const handleChange = (e) => {
         setSelectedMenu({ ...selectedMenu, [e.target.name]: e.target.value });
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+        }
+    };
+
     const handleSave = () => {
+        const formData = new FormData();
+        formData.append("Nama", selectedMenu.Nama);
+        formData.append("Deskripsi", selectedMenu.Deskripsi);
+        formData.append("Harga", selectedMenu.Harga);
+        if (imageFile) {
+            formData.append("images", imageFile);
+        }
+
         fetch(`${editApiUrl}/${selectedMenu.id}`, {
             method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(selectedMenu),
+            body: formData,
         })
         .then((res) => res.json())
         .then(() => {
             setMenus(menus.map((item) => (item.id === selectedMenu.id ? selectedMenu : item)));
-            setIsModalOpen(false); 
+            setIsModalOpen(false);
             setSelectedMenu(null);
+            setImageFile(null);
+            setImagePreview(null);
         })
         .catch((error) => console.error("Error updating menu:", error));
     };
@@ -116,6 +134,18 @@ const EditMenu = ({ fetchDataFunction, editApiUrl }) => {
                                 className="border p-2 w-full rounded text-white"
                             />
                         </label>
+                        <label className="block mb-2 text-black">
+                            Gambar:
+                            <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                className="border p-2 w-full rounded text-white"
+                            />
+                        </label>
+                        {imagePreview && (
+                            <img src={imagePreview} alt="Preview" className="w-32 h-32 mx-auto rounded-lg mb-2" />
+                        )}
                         <div className="flex justify-end mt-4">
                             <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded">Simpan</button>
                             <button onClick={() => setIsModalOpen(false)} className="ml-2 bg-gray-400 text-white px-4 py-2 rounded">Batal</button>

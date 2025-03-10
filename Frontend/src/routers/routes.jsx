@@ -12,6 +12,8 @@ import DeleteMakanan from "../components/pagesCRUD/Delete/DeleteMakanan";
 import DeleteMinuman from "../components/pagesCRUD/Delete/DeleteMinuman";
 import DeleteSnack from "../components/pagesCRUD/Delete/DeleteSnack";
 import EditMakanan from "../components/pagesCRUD/Edit/EditMakanan";
+import EditMinuman from "../components/pagesCRUD/Edit/EditMinuman";
+import EditSnack from "../components/pagesCRUD/Edit/EditSnack";
 
 export const router = createBrowserRouter([
   {
@@ -87,6 +89,22 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <EditMakanan/>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/dapur/editMenuMinuman", 
+        element: (
+          <ProtectedRoute>
+            <EditMinuman/>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/dapur/editMenuSnack", 
+        element: (
+          <ProtectedRoute>
+            <EditSnack/>
           </ProtectedRoute>
         ),
       },

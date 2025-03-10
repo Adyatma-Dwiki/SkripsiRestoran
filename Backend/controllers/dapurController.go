@@ -347,5 +347,162 @@ func DeleteMenu(r *gin.Engine, db *gorm.DB) {
 }
 
 func EditMenu(r *gin.Engine, db *gorm.DB) {
+	r.PUT("/editMenuMakanan/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		menuID, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+			return
+		}
 
+		var menu model.Makanan
+		if err := db.Where("id = ?", menuID).First(&menu).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
+			return
+		}
+
+		// Debugging: Cek data yang dikirim
+		fmt.Println("Nama:", c.PostForm("Nama"))
+		fmt.Println("Deskripsi:", c.PostForm("Deskripsi"))
+		fmt.Println("Harga:", c.PostForm("Harga"))
+
+		nama := c.PostForm("Nama")
+		deskripsi := c.PostForm("Deskripsi")
+		hargaStr := c.PostForm("Harga")
+
+		if hargaStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Harga tidak boleh kosong"})
+			return
+		}
+
+		harga, err := strconv.Atoi(hargaStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid price format"})
+			return
+		}
+
+		// Handle upload gambar
+		file, err := c.FormFile("Image")
+		if err == nil {
+			// Simpan file gambar
+			imagePath := fmt.Sprintf("uploads/%s", file.Filename)
+			if err := c.SaveUploadedFile(file, imagePath); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+				return
+			}
+			menu.Image = imagePath // Update path gambar
+		} else {
+			fmt.Println("No image uploaded")
+		}
+
+		// Update data menu
+		menu.Nama = nama
+		menu.Deskripsi = deskripsi
+		menu.Harga = harga
+
+		// Simpan ke database
+		if err := db.Save(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update menu"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu updated", "data": menu})
+	})
+
+	r.PUT("/editMenuMinuman/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		menuID, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+			return
+		}
+
+		var menu model.Minuman
+		if err := db.Where("id = ?", menuID).First(&menu).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
+			return
+		}
+
+		// Ambil data dari form-data
+		nama := c.PostForm("Nama")
+		deskripsi := c.PostForm("Deskripsi")
+		harga, err := strconv.Atoi(c.PostForm("Harga"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid price format"})
+			return
+		}
+
+		// Handle upload gambar
+		file, err := c.FormFile("Image")
+		if err == nil {
+			// Simpan file gambar di folder tertentu
+			imagePath := fmt.Sprintf("uploads/%s", file.Filename)
+			if err := c.SaveUploadedFile(file, imagePath); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+				return
+			}
+			menu.Image = imagePath // Update path gambar
+		}
+
+		// Update data menu
+		menu.Nama = nama
+		menu.Deskripsi = deskripsi
+		menu.Harga = harga
+
+		// Simpan ke database
+		if err := db.Save(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update menu"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu updated", "data": menu})
+	})
+	r.PUT("/editMenuSnack/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		menuID, err := strconv.Atoi(id)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+			return
+		}
+
+		var menu model.Snack
+		if err := db.Where("id = ?", menuID).First(&menu).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
+			return
+		}
+
+		// Ambil data dari form-data
+		nama := c.PostForm("Nama")
+		deskripsi := c.PostForm("Deskripsi")
+		harga, err := strconv.Atoi(c.PostForm("Harga"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid price format"})
+			return
+		}
+
+		// Handle upload gambar
+		file, err := c.FormFile("Image")
+		if err == nil {
+			// Simpan file gambar di folder tertentu
+			imagePath := fmt.Sprintf("uploads/%s", file.Filename)
+			if err := c.SaveUploadedFile(file, imagePath); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+				return
+			}
+			menu.Image = imagePath // Update path gambar
+		}
+
+		// Update data menu
+		menu.Nama = nama
+		menu.Deskripsi = deskripsi
+		menu.Harga = harga
+
+		// Simpan ke database
+		if err := db.Save(&menu).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update menu"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Menu updated", "data": menu})
+	})
 }

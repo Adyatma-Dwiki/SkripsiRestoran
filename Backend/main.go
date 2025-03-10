@@ -100,6 +100,7 @@ func main() {
 	controllers.LoginSetup(r)
 	controllers.AddNewMenu(r, config.DB)
 	controllers.DeleteMenu(r, config.DB)
+	controllers.EditMenu(r, config.DB)
 
 	// Endpoint untuk melihat jumlah perangkat unik yang terhubung
 	r.GET("/connectedDevices", func(c *gin.Context) {
