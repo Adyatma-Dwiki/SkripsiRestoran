@@ -181,7 +181,19 @@ const ShoppingCart = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <p>Meja</p>
-                <input type="number" value={tableID} onChange={(e) => setTableID(e.target.value)} placeholder="Isi nomor meja" className="border px-2 py-1 rounded text-white w-20 text-center" />
+                <input
+                  type="text"
+                  value={tableID}
+                  onInput={(e) => {
+                    // Hapus semua karakter non-digit
+                    const sanitizedValue = e.target.value.replace(/[^0-9]/g, '');
+                    setTableID(sanitizedValue);
+                  }}
+                  placeholder="Isi nomor meja"
+                  className="border px-2 py-1 rounded text-white w-20 text-center"
+                />
+
+
               </div>
               <div className="flex justify-between">
                 <p>{Object.values(quantities).reduce((acc, qty) => acc + qty, 0)} Items</p>

@@ -1,33 +1,113 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const DapurList = () => {
     const [orders, setOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const apiUrl = import.meta.env.VITE_API_URL;
+    const wsRef = useRef(null);
 
     const fetchOrders = () => {
         fetch(`${apiUrl}/dapur`)
             .then((response) => response.json())
             .then((result) => {
-                console.log(result);
-                setOrders(result.data);
+                console.log("Fetched Result:", result);
+                setOrders(Array.isArray(result.data) ? result.data : result.data || []);
             })
-            .catch((error) => console.error("Error:", error));
+            .catch((error) => console.error("Error fetching orders:", error));
     };
 
+    const setupWebSocket = () => {
+        const wsUrl = `${apiUrl.replace(/^http/, "ws")}/dapur/ws`;
+        const socket = new WebSocket(wsUrl);
+        wsRef.current = socket;
+    
+        socket.onopen = () => {
+            console.log("WebSocket connected to /dapur");
+        };
+    
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("WebSocket data received:", data);
+    
+            setOrders((prevOrders) => {
+                const index = prevOrders.findIndex((order) => order.id === data.id);
+                let newOrders;
+    
+                if (index !== -1) {
+                    // Update pesanan yang sudah ada, dan sesuaikan statusnya
+                    const existingOrder = prevOrders[index];
+                    const mergedOrder = {
+                        ...existingOrder,
+                        ...data,
+                        status: data.status || existingOrder.status,
+                    };
+    
+                    newOrders = [...prevOrders];
+                    newOrders[index] = mergedOrder;
+                } else {
+                    // Jika pesanan baru, tambahkan dengan status default
+                    const newOrder = {
+                        ...data,
+                        status: "Belum Dibuat",
+                    };
+    
+                    newOrders = [...prevOrders, newOrder];
+                }
+    
+                // Urutkan berdasarkan status dan ID secara ascending untuk mengikuti FIFO
+                newOrders.sort((a, b) => {
+                    // Urutkan berdasarkan status
+                    const statusOrder = {
+                        "Belum Dibuat": 1,
+                        "Siap Antar": 2,
+                        "Pegawai selesai mengantar": 3
+                    };
+    
+                    const statusA = statusOrder[a.status] || 4;
+                    const statusB = statusOrder[b.status] || 4;
+    
+                    // Jika status berbeda, urutkan berdasarkan status
+                    if (statusA !== statusB) {
+                        return statusA - statusB;
+                    }
+    
+                    // Jika status sama, urutkan berdasarkan ID (Ascending, untuk FIFO)
+                    return a.id - b.id; // Ascending untuk FIFO
+                });
+    
+                return newOrders;
+            });
+        };
+    
+        socket.onerror = (err) => {
+            console.error("WebSocket error", err);
+        };
+    
+        socket.onclose = () => {
+            console.log("WebSocket disconnected, attempting to reconnect...");
+            setTimeout(setupWebSocket, 1000);
+        };
+    };
+          
+
     useEffect(() => {
-        fetchOrders(); // Ambil data saat pertama kali render
+        fetchOrders();
+        setupWebSocket();
+
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+        };
     }, []);
 
-    // Fungsi untuk menangani klik tombol ceklis
     const handleCheckOrder = (order) => {
         setSelectedOrder(order);
     };
 
-    // Fungsi untuk konfirmasi update status pesanan
     const confirmOrder = () => {
         if (!selectedOrder) return;
-
+    
         fetch(`${apiUrl}/dapur/${selectedOrder.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -35,15 +115,47 @@ const DapurList = () => {
         })
             .then((response) => response.json())
             .then(() => {
-                setSelectedOrder(null); // Tutup popup
-                fetchOrders(); // Refresh data setelah konfirmasi berhasil
+                const id = selectedOrder.id;
+                setSelectedOrder(null);
+    
+                // Update status pesanan yang relevan
+                setOrders((prevOrders) => {
+                    const updatedOrders = prevOrders.map((order) =>
+                        order.id === id ? { ...order, action: true, status: 'Siap Antar' } : order
+                    );
+    
+                    // Urutkan berdasarkan status dan ID secara ascending untuk mengikuti FIFO
+                    updatedOrders.sort((a, b) => {
+                        // Urutkan berdasarkan status
+                        const statusOrder = {
+                            "Belum Dibuat": 1,
+                            "Siap Antar": 2,
+                            "Pegawai selesai mengantar": 3
+                        };
+    
+                        const statusA = statusOrder[a.status] || 4;
+                        const statusB = statusOrder[b.status] || 4;
+    
+                        // Jika status berbeda, urutkan berdasarkan status
+                        if (statusA !== statusB) {
+                            return statusA - statusB;
+                        }
+    
+                        // Jika status sama, urutkan berdasarkan ID (Ascending, untuk FIFO)
+                        return a.id - b.id; // Ascending untuk FIFO
+                    });
+    
+                    return updatedOrders;
+                });
             })
             .catch((error) => console.error("Error updating order:", error));
     };
-
+    
+    
     return (
         <div className="container mx-auto px-4 mt-3">
-            <h1 className="text-2xl font-bold mb-4">Order List</h1>
+            <h1 className="text-2xl font-bold mb-4 text-white">Order List</h1>
+
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200 shadow-md rounded-lg">
                     <thead>
@@ -57,25 +169,29 @@ const DapurList = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.length > 0 ? (
+                        {orders && orders.length > 0 ? (
                             orders.map((order) => (
                                 <tr key={order.id} className="border-b hover:bg-gray-50 text-black">
                                     <td className="py-2 px-4 text-center">{order.id}</td>
                                     <td className="py-2 px-4 text-center">{order.table_id}</td>
                                     <td className="py-2 px-4 text-center">
-                                        {order.total_price.toLocaleString("id-ID", {
+                                        {order.total_price?.toLocaleString("id-ID", {
                                             style: "currency",
                                             currency: "IDR",
                                         })}
                                     </td>
                                     <td className="py-2 px-4">
-                                        <ul>
-                                            {order.order_items.map((item) => (
-                                                <li key={item.id}>
-                                                    {item.product_name} - {item.quantity}
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        {order.order_items?.length > 0 ? (
+                                            <ul>
+                                                {order.order_items.map((item) => (
+                                                    <li key={item.id}>
+                                                        {item.product_name} - {item.quantity}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <span>-</span>
+                                        )}
                                     </td>
                                     <td className="py-2 px-4 text-center">{order.status}</td>
                                     <td className="py-2 px-4 text-center">
@@ -94,14 +210,15 @@ const DapurList = () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="6" className="text-center py-4">No orders available</td>
+                                <td colSpan="6" className="text-center py-4 text-black">
+                                    No orders available
+                                </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {/* Pop-up konfirmasi */}
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center">
                     <div className="bg-white p-6 rounded-lg shadow-lg">

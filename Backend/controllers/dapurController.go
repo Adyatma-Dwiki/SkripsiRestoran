@@ -28,8 +28,56 @@ func publishToMQTT(client mqtt.Client, topic string, payload model.MqttPayload) 
 	log.Println("Pesan MQTT terkirim:", string(jsonData))
 }
 
+func ParsingMessageFromMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.MessageHandler {
+	return func(client mqtt.Client, msg mqtt.Message) {
+		log.Printf("Pesan MQTT diterima dari [%s]: %s\n", msg.Topic(), string(msg.Payload()))
+
+		var payload struct {
+			Status  string `json:"status"`
+			TableID int    `json:"table_id"`
+			ID      int    `json:"id"`
+		}
+
+		// Parse payload dari MQTT
+		if err := json.Unmarshal(msg.Payload(), &payload); err != nil {
+			log.Printf("Gagal parsing JSON dari MQTT: %v\n", err)
+			return
+		}
+
+		// Cari order berdasarkan ID
+		var order model.DapurOrder
+		if err := db.First(&order, payload.ID).Error; err != nil {
+			log.Printf("Order tidak ditemukan untuk ID %d: %v\n", payload.ID, err)
+			return
+		}
+
+		// Update status order
+		order.Status = payload.Status
+		if err := db.Save(&order).Error; err != nil {
+			log.Printf("Gagal update status order: %v\n", err)
+			return
+		}
+
+		log.Printf("Status order dengan ID %d berhasil diperbarui ke '%s'\n", payload.ID, payload.Status)
+
+		// Ambil semua order terbaru setelah update
+		var dapurOrders []model.DapurOrder
+		if err := db.Preload("OrderItems").Order("id DESC").Find(&dapurOrders).Error; err != nil {
+			log.Printf("Gagal ambil data dapur untuk broadcast: %v\n", err)
+			return
+		}
+
+		// Broadcast ke WebSocket clients
+		go func() {
+			if jsonData, err := json.Marshal(dapurOrders); err == nil {
+				broadcastFunc(string(jsonData))
+			}
+		}()
+	}
+}
+
 // Fungsi untuk menyalin Order ke DapurOrders dengan status default
-func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client) {
+func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client, broadcastFunc func(string)) {
 	orderID := c.Param("id")
 	orderIDInt, err := strconv.Atoi(orderID)
 	if err != nil {
@@ -39,7 +87,7 @@ func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client) {
 
 	var dapurOrder model.DapurOrder
 
-	// Cari pesanan langsung berdasarkan ID, bukan table_id
+	// Cari pesanan langsung berdasarkan ID
 	if err := db.First(&dapurOrder, orderIDInt).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 		return
@@ -81,33 +129,60 @@ func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client) {
 		foodNames = append(foodNames, fmt.Sprintf("%s (%d)", item.ProductName, item.Quantity))
 	}
 
-	// Kirim pesan ke MQTT dengan hanya nama makanan
+	// Kirim pesan ke MQTT
 	payload := model.MqttPayload{
+		ID:        int(dapurOrder.ID),
 		TableID:   dapurOrder.TableID,
 		Status:    dapurOrder.Status,
 		FoodNames: foodNames,
 	}
 	publishToMQTT(mqttClient, "dapur/order", payload)
 
+	// Siapkan data yang akan dibroadcast ke frontend
+	dapurOrderWithItems := struct {
+		model.DapurOrder
+		OrderItems []model.OrderItem `json:"order_items"`
+	}{
+		DapurOrder: dapurOrder,
+		OrderItems: orderItems,
+	}
+
+	// Broadcast ke WebSocket clients
+	go func() {
+		if jsonData, err := json.Marshal(dapurOrderWithItems); err == nil {
+			broadcastFunc(string(jsonData))
+		} else {
+			log.Println("Failed to marshal order for WebSocket:", err)
+		}
+	}()
+
 	c.JSON(http.StatusOK, gin.H{"message": "Order updated", "data": dapurOrder})
 }
 
-func DapurOrder(r *gin.Engine, db *gorm.DB, mqttClient mqtt.Client) {
-	// Endpoint untuk mendapatkan semua pesanan dapur
+func DapurOrder(r *gin.Engine, db *gorm.DB, mqttClient mqtt.Client, broadcastFunc func(string)) {
 	r.GET("/dapur", func(c *gin.Context) {
 		var dapurOrders []model.DapurOrder
 
-		// Query database untuk mengambil semua data dari dapurs
-		if err := db.Preload("OrderItems").Order("id DESC").Find(&dapurOrders).Error; err != nil {
+		// Preload OrderItems berdasarkan foreign key OrderID
+		if err := db.Preload("OrderItems").
+			Order("CASE WHEN status = 'Belum Dibuat' THEN 1 WHEN status = 'Siap Antar' THEN 2 WHEN status = 'Pegawai selesai mengantar' THEN 3 ELSE 4 END").
+			Order("id ASC").Find(&dapurOrders).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch dapur orders"})
 			return
 		}
 
-		// Kirimkan data sebagai JSON
+		// Kirim response HTTP langsung
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Dapur orders fetched successfully",
 			"data":    dapurOrders,
 		})
+
+		// Broadcast ke WebSocket client
+		go func() {
+			if jsonData, err := json.Marshal(dapurOrders); err == nil {
+				broadcastFunc(string(jsonData))
+			}
+		}()
 	})
 
 	// Endpoint untuk mendapatkan satu pesanan berdasarkan Table ID
@@ -135,7 +210,8 @@ func DapurOrder(r *gin.Engine, db *gorm.DB, mqttClient mqtt.Client) {
 
 	// Endpoint untuk update status pesanan dan kirim MQTT
 	r.PUT("/dapur/:id", func(c *gin.Context) {
-		UpdateDapurOrder(c, db, mqttClient)
+		UpdateDapurOrder(c, db, mqttClient, broadcastFunc)
+
 	})
 }
 

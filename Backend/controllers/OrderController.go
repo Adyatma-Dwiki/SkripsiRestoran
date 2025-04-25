@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"encoding/json"
+	"log"
 	"myapp/model"
 	"net/http"
 	"strconv"
@@ -23,7 +25,7 @@ type PostOrderItemRequest struct {
 }
 
 // Endpoint untuk menyimpan order ke database
-func PostOrder(r *gin.Engine, db *gorm.DB) {
+func PostOrder(r *gin.Engine, db *gorm.DB, broadcastWebSocket func(string)) {
 	r.POST("/orders", func(c *gin.Context) {
 		var request PostOrderRequest
 
@@ -60,6 +62,13 @@ func PostOrder(r *gin.Engine, db *gorm.DB) {
 		if err := db.Create(&order).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save order", "details": err.Error()})
 			return
+		}
+		// Serialize full order struct ke JSON
+		jsonOrder, err := json.Marshal(order)
+		if err != nil {
+			log.Println("Gagal meng-encode order untuk WebSocket:", err)
+		} else {
+			broadcastWebSocket(string(jsonOrder))
 		}
 
 		// Respon sukses

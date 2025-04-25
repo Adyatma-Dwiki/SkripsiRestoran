@@ -37,9 +37,10 @@ func (o *Order) AfterCreate(tx *gorm.DB) (err error) {
 	}
 
 	dapurOrder := DapurOrder{
+		OrderID:    o.ID, // <--- Tambahkan ini
 		TableID:    o.TableID,
 		TotalPrice: o.TotalPrice,
-		OrderItems: orderItems, // Menggunakan hasil query
+		OrderItems: orderItems,
 		Status:     "Belum Dibuat",
 	}
 
