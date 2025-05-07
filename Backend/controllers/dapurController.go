@@ -44,6 +44,12 @@ func ParsingMessageFromMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Messag
 			return
 		}
 
+		// Cek apakah ID valid (bukan 0 atau tidak valid)
+		if payload.ID <= 0 {
+			log.Printf("ID yang diterima tidak valid: %d\n", payload.ID)
+			return
+		}
+
 		// Cari order berdasarkan ID
 		var order model.DapurOrder
 		if err := db.First(&order, payload.ID).Error; err != nil {

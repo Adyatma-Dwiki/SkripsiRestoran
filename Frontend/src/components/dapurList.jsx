@@ -6,6 +6,7 @@ const DapurList = () => {
     const apiUrl = import.meta.env.VITE_API_URL;
     const wsRef = useRef(null);
 
+    // command fetch data order dari database dapur 
     const fetchOrders = () => {
         fetch(`${apiUrl}/dapur`)
             .then((response) => response.json())
@@ -16,6 +17,7 @@ const DapurList = () => {
             .catch((error) => console.error("Error fetching orders:", error));
     };
 
+    //setup websocket ke backend
     const setupWebSocket = () => {
         const wsUrl = `${apiUrl.replace(/^http/, "ws")}/dapur/ws`;
         const socket = new WebSocket(wsUrl);
@@ -28,56 +30,60 @@ const DapurList = () => {
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log("WebSocket data received:", data);
-    
+        
+            const updates = Array.isArray(data) ? data : [data]; // data di olah sebagai array
+        
             setOrders((prevOrders) => {
-                const index = prevOrders.findIndex((order) => order.id === data.id);
-                let newOrders;
-    
-                if (index !== -1) {
-                    // Update pesanan yang sudah ada, dan sesuaikan statusnya
-                    const existingOrder = prevOrders[index];
-                    const mergedOrder = {
-                        ...existingOrder,
-                        ...data,
-                        status: data.status || existingOrder.status,
-                    };
-    
-                    newOrders = [...prevOrders];
-                    newOrders[index] = mergedOrder;
-                } else {
-                    // Jika pesanan baru, tambahkan dengan status default
-                    const newOrder = {
-                        ...data,
-                        status: "Belum Dibuat",
-                    };
-    
-                    newOrders = [...prevOrders, newOrder];
-                }
-    
-                // Urutkan berdasarkan status dan ID secara ascending untuk mengikuti FIFO
+                let newOrders = [...prevOrders];
+        
+                updates.forEach((update) => {
+                    const index = newOrders.findIndex((order) => order.id === update.id);
+        
+                    if (index !== -1) {
+                        // Update pesanan yang sudah ada, sesuaikan status dan gabungkan data
+                        const existingOrder = newOrders[index];
+                        const updatedOrder = {
+                            ...existingOrder,
+                            ...update,
+                            status: update.status || existingOrder.status,
+                        };
+        
+                        newOrders[index] = updatedOrder;
+                    } else {
+                        // Pesanan baru, tambahkan dengan status default jika belum ada
+                        const newOrder = {
+                            ...update,
+                            status: "Belum Dibuat", // Status default untuk pesanan baru
+                        };
+        
+                        newOrders.push(newOrder);
+                    }
+                });
+        
+                // Urutkan berdasarkan status dan ID untuk mengikuti urutan FIFO
                 newOrders.sort((a, b) => {
-                    // Urutkan berdasarkan status
                     const statusOrder = {
                         "Belum Dibuat": 1,
                         "Siap Antar": 2,
-                        "Pegawai selesai mengantar": 3
+                        "Pegawai selesai mengantar": 3,
                     };
-    
+        
                     const statusA = statusOrder[a.status] || 4;
                     const statusB = statusOrder[b.status] || 4;
-    
-                    // Jika status berbeda, urutkan berdasarkan status
+        
+                    // Urutkan berdasarkan status terlebih dahulu
                     if (statusA !== statusB) {
                         return statusA - statusB;
                     }
-    
-                    // Jika status sama, urutkan berdasarkan ID (Ascending, untuk FIFO)
-                    return a.id - b.id; // Ascending untuk FIFO
+        
+                    // Jika status sama, urutkan berdasarkan ID (Ascending untuk FIFO)
+                    return a.id - b.id;
                 });
-    
+        
                 return newOrders;
             });
         };
+        
     
         socket.onerror = (err) => {
             console.error("WebSocket error", err);
@@ -89,7 +95,7 @@ const DapurList = () => {
         };
     };
           
-
+    // render pertama kali
     useEffect(() => {
         fetchOrders();
         setupWebSocket();
@@ -101,10 +107,12 @@ const DapurList = () => {
         };
     }, []);
 
+    // fungsi untuk ngehandle orderan yang diselesaikan
     const handleCheckOrder = (order) => {
         setSelectedOrder(order);
     };
 
+    // fungsi buat menyelesaikan orderan dipakai untuk di tombol konfirmasi
     const confirmOrder = () => {
         if (!selectedOrder) return;
     

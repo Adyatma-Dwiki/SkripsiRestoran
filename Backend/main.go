@@ -118,7 +118,7 @@ func dynamicCORS() gin.HandlerFunc {
 // Setup MQTT client
 func setupMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Client {
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://192.168.0.101:1884")
+	opts.AddBroker("tcp://192.168.0.100:1884")
 	opts.SetClientID("resto-backend")
 	opts.SetKeepAlive(2 * time.Second)
 	opts.SetPingTimeout(1 * time.Second)
