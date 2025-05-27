@@ -20,7 +20,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: localIP, // Gunakan IP lokal komputer
-    port: 3000, // Sesuaikan dengan kebutuhan
+    port: 3200, // Sesuaikan dengan kebutuhan
   },
   define: {
     'import.meta.env.VITE_API_URL': JSON.stringify(`http://${localIP}:8080`),

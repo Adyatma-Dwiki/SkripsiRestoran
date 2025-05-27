@@ -23,7 +23,7 @@ const Login = () => {
       if (data.success) {
         // If login is successful, navigate to the /Dapur page
         localStorage.setItem("username", username);
-        navigate("/Dapur");
+        navigate("/dapur");
       } else {
         setError(data.message || "Login failed, check your username & password");
       }

@@ -10,24 +10,116 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
 
-func publishToMQTT(client mqtt.Client, topic string, payload model.MqttPayload) {
+// Variabel global (atau bagian struct, tergantung arsitektur)
+var ackChans = sync.Map{} // map[int]chan bool
+// Publish dengan blast sampai dapat ACK, lalu broadcast ACK status ke semua device
+func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload) {
+	ackChan := make(chan bool)
+	ackChans.Store(payload.ID, ackChan)
+	defer ackChans.Delete(payload.ID)
+
+	topic := "dapur/order"
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		log.Println("Gagal encode JSON untuk MQTT:", err)
 		return
 	}
 
-	token := client.Publish(topic, 0, false, jsonData)
-	token.Wait()
-	log.Println("Pesan MQTT terkirim:", string(jsonData))
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ackChan:
+			log.Printf("ACK diterima untuk order ID %d, berhenti blast pesan.\n", payload.ID)
+
+			// Kirim status ACK agar semua device tahu order ini sudah diambil
+			BroadcastAckStatus(client, payload.ID)
+			return
+
+		case <-ticker.C:
+			token := client.Publish(topic, 0, false, jsonData)
+			token.Wait()
+			log.Println("Pesan MQTT terkirim (blast):", string(jsonData))
+		}
+	}
 }
 
+// Fungsi untuk broadcast status "Pegawai mengambil" ke semua device
+func BroadcastAckStatus(client mqtt.Client, id int) {
+	payload := model.MqttPayload{
+		ID:     id,
+		Status: "Pegawai mengambil",
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		log.Println("Gagal encode JSON untuk broadcast ACK:", err)
+		return
+	}
+
+	token := client.Publish("dapur/order", 0, false, jsonData)
+	token.Wait()
+	log.Printf("Broadcast status ACK ke semua device untuk order ID %d\n", id)
+}
+
+// Handler untuk menerima pesan ACK dari ESP
+func HandleAckMessage(client mqtt.Client, msg mqtt.Message) {
+	log.Println("ACK diterima:", string(msg.Payload()))
+
+	var ackPayload struct {
+		ID int `json:"id"`
+	}
+
+	if err := json.Unmarshal(msg.Payload(), &ackPayload); err != nil {
+		log.Println("Gagal parsing ACK payload:", err)
+		return
+	}
+
+	if ch, ok := ackChans.Load(ackPayload.ID); ok {
+		if ackChan, ok := ch.(chan bool); ok {
+			ackChan <- true
+		}
+	}
+}
+
+// Menjalankan reblast order yang belum dapat ACK
+func StartPeriodicReblast(db *gorm.DB, mqttClient mqtt.Client) {
+	ticker := time.NewTicker(1 * time.Minute)
+	go func() {
+		for {
+			<-ticker.C
+			ReblastPendingOrders(db, mqttClient)
+		}
+	}()
+}
+
+func ReblastPendingOrders(db *gorm.DB, mqttClient mqtt.Client) {
+	var pendingOrders []model.DapurOrder
+	if err := db.Where("status = ?", "Siap Antar").Find(&pendingOrders).Error; err != nil {
+		log.Println("Gagal ambil pending orders untuk reblast:", err)
+		return
+	}
+
+	for _, order := range pendingOrders {
+		payload := model.MqttPayload{
+			ID:      int(order.ID),
+			TableID: order.TableID,
+			Status:  order.Status,
+		}
+		go PublishOrderUntilAck(mqttClient, payload)
+	}
+}
+
+// Parsing pesan status dari ESP (hasil tombol)
 func ParsingMessageFromMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.MessageHandler {
 	return func(client mqtt.Client, msg mqtt.Message) {
 		log.Printf("Pesan MQTT diterima dari [%s]: %s\n", msg.Topic(), string(msg.Payload()))
@@ -38,26 +130,22 @@ func ParsingMessageFromMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Messag
 			ID      int    `json:"id"`
 		}
 
-		// Parse payload dari MQTT
 		if err := json.Unmarshal(msg.Payload(), &payload); err != nil {
 			log.Printf("Gagal parsing JSON dari MQTT: %v\n", err)
 			return
 		}
 
-		// Cek apakah ID valid (bukan 0 atau tidak valid)
 		if payload.ID <= 0 {
 			log.Printf("ID yang diterima tidak valid: %d\n", payload.ID)
 			return
 		}
 
-		// Cari order berdasarkan ID
 		var order model.DapurOrder
 		if err := db.First(&order, payload.ID).Error; err != nil {
 			log.Printf("Order tidak ditemukan untuk ID %d: %v\n", payload.ID, err)
 			return
 		}
 
-		// Update status order
 		order.Status = payload.Status
 		if err := db.Save(&order).Error; err != nil {
 			log.Printf("Gagal update status order: %v\n", err)
@@ -66,14 +154,12 @@ func ParsingMessageFromMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Messag
 
 		log.Printf("Status order dengan ID %d berhasil diperbarui ke '%s'\n", payload.ID, payload.Status)
 
-		// Ambil semua order terbaru setelah update
 		var dapurOrders []model.DapurOrder
 		if err := db.Preload("OrderItems").Order("id DESC").Find(&dapurOrders).Error; err != nil {
 			log.Printf("Gagal ambil data dapur untuk broadcast: %v\n", err)
 			return
 		}
 
-		// Broadcast ke WebSocket clients
 		go func() {
 			if jsonData, err := json.Marshal(dapurOrders); err == nil {
 				broadcastFunc(string(jsonData))
@@ -82,7 +168,38 @@ func ParsingMessageFromMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Messag
 	}
 }
 
-// Fungsi untuk menyalin Order ke DapurOrders dengan status default
+func SetupBlastEndpoint(r *gin.Engine, db *gorm.DB, mqttClient mqtt.Client) {
+	r.POST("/dapur/ws/blast", func(c *gin.Context) {
+		var order model.DapurOrder
+
+		// Bind JSON body ke struct order
+		if err := c.BindJSON(&order); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+			return
+		}
+
+		// Cek status harus "Siap Antar"
+		if order.Status != "Siap Antar" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Order status bukan 'Siap Antar'"})
+			return
+		}
+
+		// Konversi ke payload untuk MQTT
+		payload := model.MqttPayload{
+			ID:      int(order.ID),
+			TableID: order.TableID,
+			Status:  order.Status,
+		}
+
+		// Jalankan blast hingga ACK diterima (async)
+		go PublishOrderUntilAck(mqttClient, payload)
+
+		// Response sukses langsung
+		c.JSON(http.StatusOK, gin.H{"message": "Blast dimulai untuk order ID", "id": order.ID})
+	})
+}
+
+// Fungsi update order, yang sekarang memulai blast sampai ACK diterima
 func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client, broadcastFunc func(string)) {
 	orderID := c.Param("id")
 	orderIDInt, err := strconv.Atoi(orderID)
@@ -93,13 +210,11 @@ func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client, broad
 
 	var dapurOrder model.DapurOrder
 
-	// Cari pesanan langsung berdasarkan ID
 	if err := db.First(&dapurOrder, orderIDInt).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 		return
 	}
 
-	// Ambil data dari request body
 	var input struct {
 		Action bool `json:"action"`
 	}
@@ -108,7 +223,6 @@ func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client, broad
 		return
 	}
 
-	// Ubah status berdasarkan action
 	dapurOrder.Action = input.Action
 	if input.Action {
 		dapurOrder.Status = "Siap Antar"
@@ -116,35 +230,27 @@ func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client, broad
 		dapurOrder.Status = "Belum Dibuat"
 	}
 
-	// Simpan ke database
 	if err := db.Save(&dapurOrder).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order status"})
 		return
 	}
 
-	// Ambil order_items berdasarkan order ID
+	// Kirim pesan MQTT tanpa foodNames
+	payload := model.MqttPayload{
+		ID:      int(dapurOrder.ID),
+		TableID: dapurOrder.TableID,
+		Status:  dapurOrder.Status,
+	}
+
+	// Blast kirim sampai dapat ACK (jalan di goroutine)
+	go PublishOrderUntilAck(mqttClient, payload)
+
+	// Ambil order items utk broadcast frontend
 	var orderItems []model.OrderItem
 	if err := db.Where("order_id = ?", orderIDInt).Find(&orderItems).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve order items"})
-		return
+		log.Println("Gagal ambil order items:", err)
 	}
 
-	// Ambil nama makanan dari order_items
-	var foodNames []string
-	for _, item := range orderItems {
-		foodNames = append(foodNames, fmt.Sprintf("%s (%d)", item.ProductName, item.Quantity))
-	}
-
-	// Kirim pesan ke MQTT
-	payload := model.MqttPayload{
-		ID:        int(dapurOrder.ID),
-		TableID:   dapurOrder.TableID,
-		Status:    dapurOrder.Status,
-		FoodNames: foodNames,
-	}
-	publishToMQTT(mqttClient, "dapur/order", payload)
-
-	// Siapkan data yang akan dibroadcast ke frontend
 	dapurOrderWithItems := struct {
 		model.DapurOrder
 		OrderItems []model.OrderItem `json:"order_items"`
@@ -153,7 +259,6 @@ func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client, broad
 		OrderItems: orderItems,
 	}
 
-	// Broadcast ke WebSocket clients
 	go func() {
 		if jsonData, err := json.Marshal(dapurOrderWithItems); err == nil {
 			broadcastFunc(string(jsonData))

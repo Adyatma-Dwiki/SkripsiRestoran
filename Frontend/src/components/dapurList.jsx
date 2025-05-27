@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import { useEffect, useState, useRef } from "react";
 
 const DapurList = () => {
@@ -22,79 +23,68 @@ const DapurList = () => {
         const wsUrl = `${apiUrl.replace(/^http/, "ws")}/dapur/ws`;
         const socket = new WebSocket(wsUrl);
         wsRef.current = socket;
-    
+
         socket.onopen = () => {
             console.log("WebSocket connected to /dapur");
         };
-    
+
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log("WebSocket data received:", data);
-        
+
             const updates = Array.isArray(data) ? data : [data]; // data di olah sebagai array
-        
+
             setOrders((prevOrders) => {
                 let newOrders = [...prevOrders];
-        
+
                 updates.forEach((update) => {
                     const index = newOrders.findIndex((order) => order.id === update.id);
-        
+
                     if (index !== -1) {
-                        // Update pesanan yang sudah ada, sesuaikan status dan gabungkan data
                         const existingOrder = newOrders[index];
                         const updatedOrder = {
                             ...existingOrder,
                             ...update,
                             status: update.status || existingOrder.status,
                         };
-        
+
                         newOrders[index] = updatedOrder;
                     } else {
-                        // Pesanan baru, tambahkan dengan status default jika belum ada
-                        const newOrder = {
+                        newOrders.push({
                             ...update,
-                            status: "Belum Dibuat", // Status default untuk pesanan baru
-                        };
-        
-                        newOrders.push(newOrder);
+                            status: "Belum Dibuat",
+                        });
                     }
                 });
-        
-                // Urutkan berdasarkan status dan ID untuk mengikuti urutan FIFO
-                newOrders.sort((a, b) => {
-                    const statusOrder = {
-                        "Belum Dibuat": 1,
-                        "Siap Antar": 2,
-                        "Pegawai selesai mengantar": 3,
-                    };
-        
-                    const statusA = statusOrder[a.status] || 4;
-                    const statusB = statusOrder[b.status] || 4;
-        
-                    // Urutkan berdasarkan status terlebih dahulu
-                    if (statusA !== statusB) {
-                        return statusA - statusB;
-                    }
-        
-                    // Jika status sama, urutkan berdasarkan ID (Ascending untuk FIFO)
-                    return a.id - b.id;
-                });
-        
-                return newOrders;
+
+                // Pisahkan menjadi dua grup
+                const ongoingOrders = newOrders.filter(
+                    (order) => order.status !== "Pegawai selesai mengantar"
+                );
+                const finishedOrders = newOrders.filter(
+                    (order) => order.status === "Pegawai selesai mengantar"
+                );
+
+                // Kedua grup tetap diurutkan berdasarkan ID
+                ongoingOrders.sort((a, b) => a.id - b.id);
+                finishedOrders.sort((a, b) => a.id - b.id);
+
+                return [...ongoingOrders, ...finishedOrders];
             });
+
         };
-        
-    
+
+
         socket.onerror = (err) => {
             console.error("WebSocket error", err);
         };
-    
+
         socket.onclose = () => {
             console.log("WebSocket disconnected, attempting to reconnect...");
             setTimeout(setupWebSocket, 1000);
         };
     };
-          
+
     // render pertama kali
     useEffect(() => {
         fetchOrders();
@@ -115,7 +105,7 @@ const DapurList = () => {
     // fungsi buat menyelesaikan orderan dipakai untuk di tombol konfirmasi
     const confirmOrder = () => {
         if (!selectedOrder) return;
-    
+
         fetch(`${apiUrl}/dapur/${selectedOrder.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -125,43 +115,35 @@ const DapurList = () => {
             .then(() => {
                 const id = selectedOrder.id;
                 setSelectedOrder(null);
-    
+
                 // Update status pesanan yang relevan
                 setOrders((prevOrders) => {
                     const updatedOrders = prevOrders.map((order) =>
                         order.id === id ? { ...order, action: true, status: 'Siap Antar' } : order
                     );
-    
-                    // Urutkan berdasarkan status dan ID secara ascending untuk mengikuti FIFO
-                    updatedOrders.sort((a, b) => {
-                        // Urutkan berdasarkan status
-                        const statusOrder = {
-                            "Belum Dibuat": 1,
-                            "Siap Antar": 2,
-                            "Pegawai selesai mengantar": 3
-                        };
-    
-                        const statusA = statusOrder[a.status] || 4;
-                        const statusB = statusOrder[b.status] || 4;
-    
-                        // Jika status berbeda, urutkan berdasarkan status
-                        if (statusA !== statusB) {
-                            return statusA - statusB;
-                        }
-    
-                        // Jika status sama, urutkan berdasarkan ID (Ascending, untuk FIFO)
-                        return a.id - b.id; // Ascending untuk FIFO
-                    });
-    
-                    return updatedOrders;
+
+                    // Pisahkan ongoing dan finished
+                    const ongoingOrders = updatedOrders.filter(
+                        (order) => order.status !== "Pegawai selesai mengantar"
+                    );
+                    const finishedOrders = updatedOrders.filter(
+                        (order) => order.status === "Pegawai selesai mengantar"
+                    );
+
+                    ongoingOrders.sort((a, b) => a.id - b.id);
+                    finishedOrders.sort((a, b) => a.id - b.id);
+
+                    return [...ongoingOrders, ...finishedOrders];
                 });
+
             })
             .catch((error) => console.error("Error updating order:", error));
     };
-    
-    
+
+
     return (
         <div className="container mx-auto px-4 mt-3">
+
             <h1 className="text-2xl font-bold mb-4 text-white">Order List</h1>
 
             <div className="overflow-x-auto">
@@ -226,6 +208,26 @@ const DapurList = () => {
                     </tbody>
                 </table>
             </div>
+            <button
+                className="fixed bottom-4 right-4 z-50 bg-yellow-500 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg shadow-lg"
+                onClick={() => {
+                    const readyOrders = orders.filter(order => order.status === 'Siap Antar');
+                    readyOrders.forEach(order => {
+                        fetch(`${apiUrl}/dapur/ws/blast`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(order),
+                        }).then(res => {
+                            if (!res.ok) throw new Error("Gagal blast order");
+                        }).catch(err => {
+                            console.error("Blast error:", err);
+                        });
+                    });
+                }}
+            >
+                🔁 Blast Ulang Order "Siap Antar"
+            </button>
+
 
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center">

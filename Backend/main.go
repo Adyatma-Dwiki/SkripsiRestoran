@@ -117,12 +117,12 @@ func dynamicCORS() gin.HandlerFunc {
 
 // Setup MQTT client
 func setupMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Client {
+	broker := "tcp://192.168.0.100:1884"
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://192.168.0.100:1884")
+	opts.AddBroker(broker)
 	opts.SetClientID("resto-backend")
 	opts.SetKeepAlive(2 * time.Second)
 	opts.SetPingTimeout(1 * time.Second)
-
 	client := mqtt.NewClient(opts)
 	token := client.Connect()
 	token.Wait()
@@ -141,6 +141,9 @@ func setupMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Client {
 	if subToken.Error() != nil {
 		log.Fatalf("Gagal subscribe ke dapur/response: %v", subToken.Error())
 	}
+	client.Subscribe("dapur/ack", 0, func(client mqtt.Client, msg mqtt.Message) {
+		controllers.HandleAckMessage(client, msg)
+	})
 
 	fmt.Println("Berhasil subscribe ke topik dapur/response")
 	return client
@@ -148,7 +151,10 @@ func setupMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Client {
 
 func main() {
 	// Inisialisasi koneksi ke database
+	fmt.Println(config.LocalIP)
 	config.ConnectDB()
+	defer config.CloseDB()
+
 	mqttClient := setupMQTT(config.DB, broadcastWebSocket)
 
 	// Setup Gin Router
@@ -176,6 +182,7 @@ func main() {
 	controllers.AddNewMenu(r, config.DB)
 	controllers.DeleteMenu(r, config.DB)
 	controllers.EditMenu(r, config.DB)
+	controllers.SetupBlastEndpoint(r, config.DB, mqttClient)
 
 	// Endpoint untuk melihat jumlah perangkat unik yang terhubung
 	r.GET("/connectedDevices", func(c *gin.Context) {

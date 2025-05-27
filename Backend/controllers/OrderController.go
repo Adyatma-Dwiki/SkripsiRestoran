@@ -25,7 +25,7 @@ type PostOrderItemRequest struct {
 }
 
 // Endpoint untuk menyimpan order ke database
-func PostOrder(r *gin.Engine, db *gorm.DB, broadcastWebSocket func(string)) {
+func PostOrder(r *gin.Engine, DB *gorm.DB, broadcastWebSocket func(string)) {
 	r.POST("/orders", func(c *gin.Context) {
 		var request PostOrderRequest
 
@@ -59,7 +59,7 @@ func PostOrder(r *gin.Engine, db *gorm.DB, broadcastWebSocket func(string)) {
 		}
 
 		// Simpan ke database
-		if err := db.Create(&order).Error; err != nil {
+		if err := DB.Create(&order).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save order", "details": err.Error()})
 			return
 		}
@@ -79,12 +79,12 @@ func PostOrder(r *gin.Engine, db *gorm.DB, broadcastWebSocket func(string)) {
 	})
 }
 
-func GetOrder(r *gin.Engine, db *gorm.DB) {
+func GetOrder(r *gin.Engine, DB *gorm.DB) {
 	r.GET("/orders", func(c *gin.Context) {
 		var orders []model.Order
 
 		// Query database untuk mengambil semua data order
-		if err := db.Preload("OrderItems").Find(&orders).Error; err != nil {
+		if err := DB.Preload("OrderItems").Find(&orders).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch data"})
 			return
 		}
@@ -97,7 +97,7 @@ func GetOrder(r *gin.Engine, db *gorm.DB) {
 	})
 }
 
-func GetOrderByID(r *gin.Engine, db *gorm.DB) {
+func GetOrderByID(r *gin.Engine, DB *gorm.DB) {
 	r.GET("/orders/:id", func(c *gin.Context) {
 		id := c.Param("id") // Mendapatkan ID dari URL
 		var order model.Order
@@ -110,7 +110,7 @@ func GetOrderByID(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Query database untuk mengambil order berdasarkan ID
-		if err := db.Preload("OrderItems").First(&order, orderID).Error; err != nil {
+		if err := DB.Preload("OrderItems").First(&order, orderID).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 			return
 		}
