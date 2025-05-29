@@ -34,13 +34,13 @@ function Navbar() {
         targetElement.scrollIntoView({ behavior: "smooth" });
       }
     }
+    setIsMenuOpen(false);
   };
 
   return (
     <nav
-      className={`fixed top-0 left-0 w-full p-5 z-50 transition-all duration-300 ${
-        isAtTop ? 'bg-transparent text-white' : 'bg-black text-white shadow-lg'
-      }`}
+      className={`fixed top-0 left-0 w-full p-5 z-50 transition-all duration-300 ${isAtTop ? 'bg-transparent text-white' : 'bg-black text-white shadow-lg'
+        }`}
     >
       <div className="container mx-auto flex justify-between items-center">
         <div className="text-2xl font-bold">Rumah Tamah</div>
@@ -55,9 +55,8 @@ function Navbar() {
 
         {/* Menu Navigasi */}
         <ul
-          className={`lg:flex lg:space-x-6 lg:items-center text-lg ${
-            isMenuOpen ? 'block' : 'hidden'
-          } lg:block absolute lg:relative top-16 lg:top-0 left-0 w-full lg:w-auto bg-black lg:bg-transparent`}
+          className={`lg:flex lg:space-x-6 lg:items-center text-lg ${isMenuOpen ? 'block' : 'hidden'
+            } lg:block absolute lg:relative top-16 lg:top-0 left-0 w-full lg:w-auto bg-black lg:bg-transparent`}
         >
           <li>
             <Link
@@ -96,8 +95,9 @@ function Navbar() {
             </Link>
           </li>
           <li>
-            <Link to="/Checkout" className="block p-2 hover:text-yellow-500 text-white">
+            <Link to="/Checkout" className="block p-2 hover:text-yellow-500 text-white" onClick={() => setIsMenuOpen(false)}>
               <ShoppingCartIcon className="w-6 h-6 text-white hover:text-yellow-500" />
+
             </Link>
           </li>
         </ul>

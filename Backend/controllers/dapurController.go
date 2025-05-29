@@ -338,8 +338,8 @@ func AddNewMenu(r *gin.Engine, db *gorm.DB) {
 			return
 		}
 
-		// Simpan gambar ke folder uploads/
-		uploadDir := "uploads"
+		// Simpan gambar ke folder images/
+		uploadDir := "images"
 		os.MkdirAll(uploadDir, os.ModePerm) // Pastikan folder ada
 
 		// Format ulang nama file untuk menghindari konflik
@@ -353,8 +353,7 @@ func AddNewMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Pastikan path yang disimpan di database menggunakan images/
-		imagePath := filepath.ToSlash(strings.Replace(filePath, "uploads", "images", 1))
-
+		imagePath := filepath.ToSlash(filePath)
 		// Bind form-data ke struct Makanan
 		menu.Nama = c.PostForm("Nama")
 		menu.Deskripsi = c.PostForm("Deskripsi")
@@ -390,7 +389,7 @@ func AddNewMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Simpan gambar ke folder uploads/
-		uploadDir := "uploads"
+		uploadDir := "images"
 		os.MkdirAll(uploadDir, os.ModePerm) // Pastikan folder ada
 
 		// Format ulang nama file untuk menghindari konflik
@@ -404,7 +403,7 @@ func AddNewMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Pastikan path yang disimpan di database menggunakan images/
-		imagePath := filepath.ToSlash(strings.Replace(filePath, "uploads", "images", 1))
+		imagePath := filepath.ToSlash(filePath)
 
 		// Bind form-data ke struct Makanan
 		menu.Nama = c.PostForm("Nama")
@@ -442,7 +441,7 @@ func AddNewMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Simpan gambar ke folder uploads/
-		uploadDir := "uploads"
+		uploadDir := "images"
 		os.MkdirAll(uploadDir, os.ModePerm) // Pastikan folder ada
 
 		// Format ulang nama file untuk menghindari konflik
@@ -456,7 +455,7 @@ func AddNewMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Pastikan path yang disimpan di database menggunakan images/
-		imagePath := filepath.ToSlash(strings.Replace(filePath, "uploads", "images", 1))
+		imagePath := filepath.ToSlash(filePath)
 
 		// Bind form-data ke struct Makanan
 		menu.Nama = c.PostForm("Nama")
@@ -569,10 +568,10 @@ func EditMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Handle upload gambar
-		file, err := c.FormFile("Image")
+		file, err := c.FormFile("images")
 		if err == nil {
 			// Simpan file gambar
-			imagePath := fmt.Sprintf("uploads/%s", file.Filename)
+			imagePath := fmt.Sprintf("images/%s", file.Filename)
 			if err := c.SaveUploadedFile(file, imagePath); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 				return
@@ -620,10 +619,10 @@ func EditMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Handle upload gambar
-		file, err := c.FormFile("Image")
+		file, err := c.FormFile("images")
 		if err == nil {
 			// Simpan file gambar di folder tertentu
-			imagePath := fmt.Sprintf("uploads/%s", file.Filename)
+			imagePath := fmt.Sprintf("images/%s", file.Filename)
 			if err := c.SaveUploadedFile(file, imagePath); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 				return
@@ -668,10 +667,10 @@ func EditMenu(r *gin.Engine, db *gorm.DB) {
 		}
 
 		// Handle upload gambar
-		file, err := c.FormFile("Image")
+		file, err := c.FormFile("images")
 		if err == nil {
 			// Simpan file gambar di folder tertentu
-			imagePath := fmt.Sprintf("uploads/%s", file.Filename)
+			imagePath := fmt.Sprintf("images/%s", file.Filename)
 			if err := c.SaveUploadedFile(file, imagePath); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 				return
