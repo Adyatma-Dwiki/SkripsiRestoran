@@ -156,6 +156,7 @@ const DapurList = () => {
                             <th className="py-2 px-4 text-center">Order Items</th>
                             <th className="py-2 px-4 text-center">Status Orders</th>
                             <th className="py-2 px-4 text-center">Action</th>
+                            <th className="py-2 px-4 text-center">Confirm By</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -196,6 +197,15 @@ const DapurList = () => {
                                             </button>
                                         )}
                                     </td>
+                                    <td className="py-2 px-4 text-center">
+                                        {order.device_id ? (
+                                            <span className="text-black font-bold">{order.device_id}</span>
+                                        ) : (
+                                            <span className="text-black-500 italic">Menunggu konfirmasi</span>
+                                        )}
+
+                                    </td>
+
                                 </tr>
                             ))
                         ) : (

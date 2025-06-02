@@ -8,6 +8,7 @@ type DapurOrder struct {
 	OrderItems []OrderItem `json:"order_items" gorm:"foreignKey:OrderID"` // tetap pakai OrderID
 	Status     string      `json:"status"`
 	Action     bool        `json:"action" gorm:"default:false"`
+	ConfirmBy  string      `json:"device_id" gorm:"default:''"`
 }
 
 func (DapurOrder) TableName() string {

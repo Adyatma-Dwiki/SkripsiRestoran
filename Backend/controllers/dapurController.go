@@ -21,11 +21,31 @@ import (
 // Variabel global (atau bagian struct, tergantung arsitektur)
 var ackChans = sync.Map{} // map[int]chan bool
 // Publish dengan blast sampai dapat ACK, lalu broadcast ACK status ke semua device
-func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload) {
+func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload, db *gorm.DB) {
+	if payload.ID <= 0 {
+		log.Println("ID payload tidak valid, tidak akan blast.")
+		return
+	}
+
 	ackChan := make(chan bool)
-	ackChans.Store(payload.ID, ackChan)
+	if _, loaded := ackChans.LoadOrStore(payload.ID, ackChan); loaded {
+		log.Printf("Order ID %d sudah dalam proses blast (dari LoadOrStore), batal blast ulang.\n", payload.ID)
+		return
+	}
 	defer ackChans.Delete(payload.ID)
 
+	// Cek ulang ke DB apakah order sudah confirm_by atau tidak sebelum mulai blast
+	var order model.DapurOrder
+	if err := db.First(&order, payload.ID).Error; err != nil {
+		log.Printf("Gagal cek order ID %d di DB: %v\n", payload.ID, err)
+		return
+	}
+	if order.ConfirmBy != "" {
+		log.Printf("Order ID %d sudah di-ACK di DB, batal blast ulang.\n", payload.ID)
+		return
+	}
+
+	// Proses blast pesan MQTT
 	topic := "dapur/order"
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -40,11 +60,8 @@ func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload) {
 		select {
 		case <-ackChan:
 			log.Printf("ACK diterima untuk order ID %d, berhenti blast pesan.\n", payload.ID)
-
-			// Kirim status ACK agar semua device tahu order ini sudah diambil
-			BroadcastAckStatus(client, payload.ID)
+			BroadcastAckStatus(client, payload.ID, payload.DeviceID)
 			return
-
 		case <-ticker.C:
 			token := client.Publish(topic, 0, false, jsonData)
 			token.Wait()
@@ -54,10 +71,11 @@ func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload) {
 }
 
 // Fungsi untuk broadcast status "Pegawai mengambil" ke semua device
-func BroadcastAckStatus(client mqtt.Client, id int) {
+func BroadcastAckStatus(client mqtt.Client, id int, deviceID string) {
 	payload := model.MqttPayload{
-		ID:     id,
-		Status: "Pegawai mengambil",
+		ID:       id,
+		Status:   "Pegawai mengambil",
+		DeviceID: deviceID,
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -68,25 +86,44 @@ func BroadcastAckStatus(client mqtt.Client, id int) {
 
 	token := client.Publish("dapur/order", 0, false, jsonData)
 	token.Wait()
-	log.Printf("Broadcast status ACK ke semua device untuk order ID %d\n", id)
+	log.Printf("Broadcast status ACK ke semua device untuk order ID %d oleh device %s\n", id, deviceID)
 }
 
-// Handler untuk menerima pesan ACK dari ESP
-func HandleAckMessage(client mqtt.Client, msg mqtt.Message) {
+func HandleAckMessage(client mqtt.Client, msg mqtt.Message, db *gorm.DB) {
 	log.Println("ACK diterima:", string(msg.Payload()))
 
 	var ackPayload struct {
-		ID int `json:"id"`
+		ID       int    `json:"id"`
+		DeviceID string `json:"device_id"`
 	}
 
+	// Parsing payload dari ACK
 	if err := json.Unmarshal(msg.Payload(), &ackPayload); err != nil {
 		log.Println("Gagal parsing ACK payload:", err)
 		return
 	}
 
+	// Update kolom ConfirmBy di database
+	if err := db.Model(&model.DapurOrder{}).
+		Where("id = ?", ackPayload.ID).
+		Update("confirm_by", ackPayload.DeviceID).Error; err != nil {
+		log.Println("Gagal update ConfirmBy di DB:", err)
+	} else {
+		log.Printf("ConfirmBy order ID %d diupdate dengan device %s\n", ackPayload.ID, ackPayload.DeviceID)
+	}
+
+	// Kirim broadcast ACK ke semua device, agar mereka stop
+	BroadcastAckStatus(client, ackPayload.ID, ackPayload.DeviceID)
+
+	// Hentikan blast jika channel ACK-nya masih ada
 	if ch, ok := ackChans.Load(ackPayload.ID); ok {
 		if ackChan, ok := ch.(chan bool); ok {
-			ackChan <- true
+			select {
+			case ackChan <- true:
+				log.Printf("Blast dihentikan untuk order ID %d\n", ackPayload.ID)
+			default:
+				log.Printf("Channel ACK untuk order ID %d sudah ditutup atau sibuk\n", ackPayload.ID)
+			}
 		}
 	}
 }
@@ -104,18 +141,24 @@ func StartPeriodicReblast(db *gorm.DB, mqttClient mqtt.Client) {
 
 func ReblastPendingOrders(db *gorm.DB, mqttClient mqtt.Client) {
 	var pendingOrders []model.DapurOrder
-	if err := db.Where("status = ?", "Siap Antar").Find(&pendingOrders).Error; err != nil {
+	if err := db.Where("status = ? AND confirm_by IS NULL", "Siap Antar").Find(&pendingOrders).Error; err != nil {
 		log.Println("Gagal ambil pending orders untuk reblast:", err)
 		return
 	}
 
 	for _, order := range pendingOrders {
+		// Cek apakah sudah ada channel untuk ID ini
+		if _, exists := ackChans.Load(order.ID); exists {
+			log.Printf("Order ID %d sudah dalam proses blast, skip.\n", order.ID)
+			continue
+		}
+
 		payload := model.MqttPayload{
 			ID:      int(order.ID),
 			TableID: order.TableID,
 			Status:  order.Status,
 		}
-		go PublishOrderUntilAck(mqttClient, payload)
+		go PublishOrderUntilAck(mqttClient, payload, db)
 	}
 }
 
@@ -192,7 +235,7 @@ func SetupBlastEndpoint(r *gin.Engine, db *gorm.DB, mqttClient mqtt.Client) {
 		}
 
 		// Jalankan blast hingga ACK diterima (async)
-		go PublishOrderUntilAck(mqttClient, payload)
+		go PublishOrderUntilAck(mqttClient, payload, db)
 
 		// Response sukses langsung
 		c.JSON(http.StatusOK, gin.H{"message": "Blast dimulai untuk order ID", "id": order.ID})
@@ -243,7 +286,7 @@ func UpdateDapurOrder(c *gin.Context, db *gorm.DB, mqttClient mqtt.Client, broad
 	}
 
 	// Blast kirim sampai dapat ACK (jalan di goroutine)
-	go PublishOrderUntilAck(mqttClient, payload)
+	go PublishOrderUntilAck(mqttClient, payload, db)
 
 	// Ambil order items utk broadcast frontend
 	var orderItems []model.OrderItem

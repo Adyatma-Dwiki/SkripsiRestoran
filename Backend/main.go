@@ -117,7 +117,7 @@ func dynamicCORS() gin.HandlerFunc {
 
 // Setup MQTT client
 func setupMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Client {
-	broker := "tcp://192.168.0.100:1884"
+	broker := fmt.Sprintf("tcp://%s:1884", config.LocalIP) // Ganti dengan IP lokal Anda
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(broker)
 	opts.SetClientID("resto-backend")
@@ -142,7 +142,7 @@ func setupMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Client {
 		log.Fatalf("Gagal subscribe ke dapur/response: %v", subToken.Error())
 	}
 	client.Subscribe("dapur/ack", 0, func(client mqtt.Client, msg mqtt.Message) {
-		controllers.HandleAckMessage(client, msg)
+		controllers.HandleAckMessage(client, msg, config.DB)
 	})
 
 	fmt.Println("Berhasil subscribe ke topik dapur/response")
