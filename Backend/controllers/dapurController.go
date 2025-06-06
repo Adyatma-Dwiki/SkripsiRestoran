@@ -103,16 +103,29 @@ func HandleAckMessage(client mqtt.Client, msg mqtt.Message, db *gorm.DB) {
 		return
 	}
 
-	// Update kolom ConfirmBy di database
-	if err := db.Model(&model.DapurOrder{}).
-		Where("id = ?", ackPayload.ID).
-		Update("confirm_by", ackPayload.DeviceID).Error; err != nil {
-		log.Println("Gagal update ConfirmBy di DB:", err)
-	} else {
-		log.Printf("ConfirmBy order ID %d diupdate dengan device %s\n", ackPayload.ID, ackPayload.DeviceID)
+	var order model.DapurOrder
+	if err := db.First(&order, ackPayload.ID).Error; err != nil {
+		log.Println("Order tidak ditemukan:", err)
+		return
 	}
 
-	// Kirim broadcast ACK ke semua device, agar mereka stop
+	// Cek apakah sudah dikonfirmasi sebelumnya
+	if order.ConfirmBy != "" {
+		log.Printf("Order ID %d sudah dikonfirmasi oleh %s, abaikan dari %s\n",
+			ackPayload.ID, order.ConfirmBy, ackPayload.DeviceID)
+		return
+	}
+
+	// Update kolom ConfirmBy
+	if err := db.Model(&order).
+		Update("confirm_by", ackPayload.DeviceID).Error; err != nil {
+		log.Println("Gagal update ConfirmBy di DB:", err)
+		return
+	}
+
+	log.Printf("ConfirmBy order ID %d diupdate dengan device %s\n", ackPayload.ID, ackPayload.DeviceID)
+
+	// Kirim broadcast ACK ke semua device
 	BroadcastAckStatus(client, ackPayload.ID, ackPayload.DeviceID)
 
 	// Hentikan blast jika channel ACK-nya masih ada
