@@ -60,7 +60,6 @@ func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload, db *gor
 		select {
 		case <-ackChan:
 			log.Printf("ACK diterima untuk order ID %d, berhenti blast pesan.\n", payload.ID)
-			BroadcastAckStatus(client, payload.ID, payload.DeviceID)
 			return
 		case <-ticker.C:
 			token := client.Publish(topic, 0, false, jsonData)
@@ -87,6 +86,7 @@ func BroadcastAckStatus(client mqtt.Client, id int, deviceID string) {
 	token := client.Publish("dapur/order", 0, false, jsonData)
 	token.Wait()
 	log.Printf("Broadcast status ACK ke semua device untuk order ID %d oleh device %s\n", id, deviceID)
+	log.Printf("Payload broadcast: %s\n", string(jsonData))
 }
 
 func HandleAckMessage(client mqtt.Client, msg mqtt.Message, db *gorm.DB) {

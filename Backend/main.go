@@ -132,7 +132,13 @@ func setupMQTT(db *gorm.DB, broadcastFunc func(string)) mqtt.Client {
 	}
 
 	fmt.Println("Terhubung ke MQTT broker")
-
+	client.Subscribe("server/request_time", 0, func(client mqtt.Client, msg mqtt.Message) {
+		fmt.Println("Permintaan update waktu diterima dari:", string(msg.Payload()))
+		now := time.Now().Format(time.RFC3339)
+		token := client.Publish("server/time", 0, true, now) // update retained
+		token.Wait()
+		fmt.Println("Waktu baru dikirim:", now)
+	})
 	// Gunakan parsingMessageFromMQTT sebagai handler untuk "dapur/response"
 	handler := controllers.ParsingMessageFromMQTT(db, broadcastFunc)
 
