@@ -46,7 +46,7 @@ func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload, db *gor
 	}
 
 	// Proses blast pesan MQTT
-	topic := "dapur/order"
+	topic := fmt.Sprintf("dapur/order/%d", order.ID)
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		log.Println("Gagal encode JSON untuk MQTT:", err)
@@ -70,22 +70,87 @@ func PublishOrderUntilAck(client mqtt.Client, payload model.MqttPayload, db *gor
 }
 
 // Fungsi untuk broadcast status "Pegawai mengambil" ke semua device
-func BroadcastAckStatus(client mqtt.Client, id int, deviceID string) {
-	payload := model.MqttPayload{
-		ID:       id,
-		Status:   "Pegawai mengambil",
-		DeviceID: deviceID,
+// Fungsi untuk broadcast status "Pegawai mengambil" ke semua device
+func BroadcastAckStatus(client mqtt.Client, id int, deviceID string, db *gorm.DB) {
+	// ✅ Ambil OrderItems berdasarkan order ID
+	var orderItems []model.OrderItem
+	if err := db.Where("order_id = ?", id).Find(&orderItems).Error; err != nil {
+		log.Println("Gagal ambil order items:", err)
+		return
 	}
 
+	// ✅ Hitung total per kategori
+	var makananCount, minumanCount, snackCount int
+
+	for _, item := range orderItems {
+		var count int64
+
+		// Cek apakah termasuk Makanan
+		if err := db.Model(&model.Makanan{}).
+			Where("Nama = ?", item.ProductName).
+			Count(&count).Error; err == nil && count > 0 {
+			makananCount += item.Quantity
+			continue
+		}
+
+		// Cek apakah termasuk Minuman
+		if err := db.Model(&model.Minuman{}).
+			Where("Nama = ?", item.ProductName).
+			Count(&count).Error; err == nil && count > 0 {
+			minumanCount += item.Quantity
+			continue
+		}
+
+		// Cek apakah termasuk Snack
+		if err := db.Model(&model.Snack{}).
+			Where("Nama = ?", item.ProductName).
+			Count(&count).Error; err == nil && count > 0 {
+			snackCount += item.Quantity
+			continue
+		}
+
+		// Tidak ditemukan di semua kategori
+		log.Printf("Produk '%s' tidak ditemukan di kategori manapun", item.ProductName)
+	}
+
+	// ✅ Buat ringkasan foodNames
+	var foodNames []string
+	if makananCount > 0 {
+		foodNames = append(foodNames, fmt.Sprintf("Makanan (%d)", makananCount))
+	}
+	if minumanCount > 0 {
+		foodNames = append(foodNames, fmt.Sprintf("Minuman (%d)", minumanCount))
+	}
+	if snackCount > 0 {
+		foodNames = append(foodNames, fmt.Sprintf("Snack (%d)", snackCount))
+	}
+
+	// ✅ Buat payload MQTT
+	payload := model.MqttPayload{
+		ID:        id,
+		Status:    "Pegawai mengambil",
+		DeviceID:  deviceID,
+		FoodNames: foodNames,
+	}
+
+	// ✅ Encode ke JSON
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		log.Println("Gagal encode JSON untuk broadcast ACK:", err)
 		return
 	}
 
+	// ✅ Kirim ke topik umum
 	token := client.Publish("dapur/order", 0, false, jsonData)
 	token.Wait()
-	log.Printf("Broadcast status ACK ke semua device untuk order ID %d oleh device %s\n", id, deviceID)
+
+	// ✅ Kirim juga ke topik khusus
+	topicKhusus := fmt.Sprintf("dapur/order/%d", id)
+	token2 := client.Publish(topicKhusus, 0, true, jsonData)
+	token2.Wait()
+
+	log.Println(&topicKhusus)
+	log.Printf("Broadcast status ACK ke semua device dan topik khusus untuk order ID %d oleh device %s\n", id, deviceID)
 	log.Printf("Payload broadcast: %s\n", string(jsonData))
 }
 
@@ -126,7 +191,7 @@ func HandleAckMessage(client mqtt.Client, msg mqtt.Message, db *gorm.DB) {
 	log.Printf("ConfirmBy order ID %d diupdate dengan device %s\n", ackPayload.ID, ackPayload.DeviceID)
 
 	// Kirim broadcast ACK ke semua device
-	BroadcastAckStatus(client, ackPayload.ID, ackPayload.DeviceID)
+	BroadcastAckStatus(client, ackPayload.ID, ackPayload.DeviceID, db)
 
 	// Hentikan blast jika channel ACK-nya masih ada
 	if ch, ok := ackChans.Load(ackPayload.ID); ok {
